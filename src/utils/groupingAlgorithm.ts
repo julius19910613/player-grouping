@@ -1,4 +1,5 @@
-import type { Player, Team, GroupingConfig, PlayerPosition } from '../types/player';
+import type { Player, Team, GroupingConfig } from '../types';
+import { BasketballPosition } from '../types';
 
 /**
  * 分组算法类
@@ -57,7 +58,14 @@ export class GroupingAlgorithm {
    * 确保每个团队有合适的位置分配
    */
   private static positionBalancedGrouping(players: Player[], teamCount: number): Team[] {
-    const positions: PlayerPosition[] = ['GK', 'DEF', 'MID', 'FWD'];
+    const positions: BasketballPosition[] = [
+      BasketballPosition.PG,
+      BasketballPosition.SG,
+      BasketballPosition.SF,
+      BasketballPosition.PF,
+      BasketballPosition.C,
+      BasketballPosition.UTILITY
+    ];
     const teams: Team[] = Array.from({ length: teamCount }, (_, i) => ({
       id: `team-${i + 1}`,
       name: `团队 ${i + 1}`,
@@ -66,11 +74,13 @@ export class GroupingAlgorithm {
     }));
 
     // 按位置分组
-    const playersByPosition: Record<PlayerPosition, Player[]> = {
-      GK: [],
-      DEF: [],
-      MID: [],
-      FWD: [],
+    const playersByPosition: Record<BasketballPosition, Player[]> = {
+      [BasketballPosition.PG]: [],
+      [BasketballPosition.SG]: [],
+      [BasketballPosition.SF]: [],
+      [BasketballPosition.PF]: [],
+      [BasketballPosition.C]: [],
+      [BasketballPosition.UTILITY]: [],
     };
 
     players.forEach((player) => {

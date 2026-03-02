@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
-import type { Player, Team, GroupingConfig, PlayerPosition } from './types/player';
-import { calculateOverallSkill, POSITION_NAMES } from './types/player';
+import type { Player, Team, GroupingConfig } from './types';
+import { 
+  BasketballPosition, 
+  POSITION_DETAILS, 
+  createDefaultBasketballSkills,
+  calculateOverallSkill 
+} from './types';
 import { GroupingAlgorithm } from './utils/groupingAlgorithm';
 import { Storage } from './utils/storage';
 import './App.css';
@@ -13,14 +18,8 @@ function App() {
 
   // 表单状态
   const [playerName, setPlayerName] = useState('');
-  const [playerPosition, setPlayerPosition] = useState<PlayerPosition>('MID');
-  const [skills, setSkills] = useState({
-    speed: 5,
-    shooting: 5,
-    passing: 5,
-    defense: 5,
-    physical: 5,
-  });
+  const [playerPosition, setPlayerPosition] = useState<BasketballPosition>(BasketballPosition.PG);
+  const [skills, setSkills] = useState(createDefaultBasketballSkills());
 
   // 加载本地存储的球员数据
   useEffect(() => {
@@ -44,11 +43,9 @@ function App() {
       return;
     }
 
-    const playerSkills = {
-      ...skills,
-      overall: 0,
-    };
-    playerSkills.overall = calculateOverallSkill(playerSkills);
+    // 计算总体能力
+    const overall = calculateOverallSkill(skills, playerPosition);
+    const playerSkills = { ...skills, overall };
 
     const newPlayer: Player = {
       id: `player-${Date.now()}`,
@@ -66,14 +63,8 @@ function App() {
   // 重置表单
   const resetForm = () => {
     setPlayerName('');
-    setPlayerPosition('MID');
-    setSkills({
-      speed: 5,
-      shooting: 5,
-      passing: 5,
-      defense: 5,
-      physical: 5,
-    });
+    setPlayerPosition(BasketballPosition.PG);
+    setSkills(createDefaultBasketballSkills());
   };
 
   // 删除球员
@@ -124,10 +115,43 @@ function App() {
     }
   };
 
+  // 技能分类
+  const skillCategories = {
+    '投篮': ['twoPointShot', 'threePointShot', 'freeThrow'],
+    '组织': ['passing', 'ballControl', 'courtVision'],
+    '防守': ['perimeterDefense', 'interiorDefense', 'steals', 'blocks'],
+    '篮板': ['offensiveRebound', 'defensiveRebound'],
+    '身体素质': ['speed', 'strength', 'stamina', 'vertical'],
+    '篮球智商': ['basketballIQ', 'teamwork', 'clutch']
+  };
+
+  // 技能中文映射
+  const skillNames: Record<string, string> = {
+    twoPointShot: '两分投篮',
+    threePointShot: '三分投篮',
+    freeThrow: '罚球',
+    passing: '传球',
+    ballControl: '控球',
+    courtVision: '场上视野',
+    perimeterDefense: '外线防守',
+    interiorDefense: '内线防守',
+    steals: '抢断',
+    blocks: '盖帽',
+    offensiveRebound: '进攻篮板',
+    defensiveRebound: '防守篮板',
+    speed: '速度',
+    strength: '力量',
+    stamina: '耐力',
+    vertical: '弹跳',
+    basketballIQ: '篮球智商',
+    teamwork: '团队配合',
+    clutch: '关键时刻'
+  };
+
   return (
     <div className="app">
       <header className="header">
-        <h1>⚽ 球员分组程序</h1>
+        <h1>🏀 篮球球员分组程序</h1>
         <p>智能分配球员到平衡的团队</p>
       </header>
 
@@ -150,32 +174,40 @@ function App() {
                 位置：
                 <select
                   value={playerPosition}
-                  onChange={(e) => setPlayerPosition(e.target.value as PlayerPosition)}
+                  onChange={(e) => setPlayerPosition(e.target.value as BasketballPosition)}
                 >
-                  {Object.entries(POSITION_NAMES).map(([key, name]) => (
+                  {Object.entries(POSITION_DETAILS).map(([key, detail]) => (
                     <option key={key} value={key}>
-                      {name}
+                      {detail.icon} {detail.name} ({detail.englishName})
                     </option>
                   ))}
                 </select>
               </label>
             </div>
 
-            <div className="skills-grid">
-              {Object.entries(skills).map(([skill, value]) => (
-                <label key={skill}>
-                  {skill.charAt(0).toUpperCase() + skill.slice(1)}:
-                  <input
-                    type="range"
-                    min="1"
-                    max="10"
-                    value={value}
-                    onChange={(e) =>
-                      setSkills({ ...skills, [skill]: parseInt(e.target.value) })
-                    }
-                  />
-                  <span>{value}</span>
-                </label>
+            <div className="skills-section">
+              <h3>能力评分 (1-99)</h3>
+              {Object.entries(skillCategories).map(([category, skillKeys]) => (
+                <div key={category} className="skill-category">
+                  <h4>{category}</h4>
+                  <div className="skills-grid">
+                    {skillKeys.map((skillKey) => (
+                      <label key={skillKey}>
+                        {skillNames[skillKey]}:
+                        <input
+                          type="range"
+                          min="1"
+                          max="99"
+                          value={skills[skillKey as keyof typeof skills] as number}
+                          onChange={(e) =>
+                            setSkills({ ...skills, [skillKey]: parseInt(e.target.value) })
+                          }
+                        />
+                        <span>{skills[skillKey as keyof typeof skills]}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
 
@@ -205,8 +237,14 @@ function App() {
                 <div key={player.id} className="player-card">
                   <div className="player-header">
                     <h3>{player.name}</h3>
-                    <span className="position-badge">
-                      {POSITION_NAMES[player.position]}
+                    <span 
+                      className="position-badge"
+                      style={{ 
+                        backgroundColor: `${POSITION_DETAILS[player.position].color}20`,
+                        borderColor: POSITION_DETAILS[player.position].color
+                      }}
+                    >
+                      {POSITION_DETAILS[player.position].icon} {POSITION_DETAILS[player.position].name}
                     </span>
                     <button
                       onClick={() => handleDeletePlayer(player.id)}
@@ -216,29 +254,29 @@ function App() {
                     </button>
                   </div>
                   <div className="player-skills">
-                    <div className="skill-item">
+                    <div className="skill-item overall">
                       <span>总体能力</span>
                       <strong>{player.skills.overall}</strong>
                     </div>
                     <div className="skill-item">
-                      <span>速度</span>
-                      <span>{player.skills.speed}</span>
+                      <span>投篮</span>
+                      <span>{Math.round((player.skills.twoPointShot + player.skills.threePointShot + player.skills.freeThrow) / 3)}</span>
                     </div>
                     <div className="skill-item">
-                      <span>射门</span>
-                      <span>{player.skills.shooting}</span>
-                    </div>
-                    <div className="skill-item">
-                      <span>传球</span>
-                      <span>{player.skills.passing}</span>
+                      <span>组织</span>
+                      <span>{Math.round((player.skills.passing + player.skills.ballControl + player.skills.courtVision) / 3)}</span>
                     </div>
                     <div className="skill-item">
                       <span>防守</span>
-                      <span>{player.skills.defense}</span>
+                      <span>{Math.round((player.skills.perimeterDefense + player.skills.interiorDefense) / 2)}</span>
                     </div>
                     <div className="skill-item">
-                      <span>身体</span>
-                      <span>{player.skills.physical}</span>
+                      <span>篮板</span>
+                      <span>{Math.round((player.skills.offensiveRebound + player.skills.defensiveRebound) / 2)}</span>
+                    </div>
+                    <div className="skill-item">
+                      <span>身体素质</span>
+                      <span>{Math.round((player.skills.speed + player.skills.strength + player.skills.stamina + player.skills.vertical) / 4)}</span>
                     </div>
                   </div>
                 </div>
@@ -289,8 +327,11 @@ function App() {
                     {team.players.map((player) => (
                       <div key={player.id} className="team-player">
                         <span className="player-name">{player.name}</span>
-                        <span className="player-position">
-                          {POSITION_NAMES[player.position]}
+                        <span 
+                          className="player-position"
+                          style={{ color: POSITION_DETAILS[player.position].color }}
+                        >
+                          {POSITION_DETAILS[player.position].icon} {POSITION_DETAILS[player.position].name}
                         </span>
                         <span className="player-overall">{player.skills.overall}</span>
                       </div>

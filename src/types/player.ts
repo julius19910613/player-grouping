@@ -1,22 +1,16 @@
-// 球员位置类型
-export type PlayerPosition = 'GK' | 'DEF' | 'MID' | 'FWD';
+// 从 basketball.ts 导入篮球相关类型
+import { BasketballPosition, BasketballSkills, POSITION_DETAILS } from './basketball';
 
-// 球员能力评估
-export interface PlayerSkills {
-  speed: number;        // 速度 (1-10)
-  shooting: number;     // 射门 (1-10)
-  passing: number;      // 传球 (1-10)
-  defense: number;      // 防守 (1-10)
-  physical: number;     // 身体素质 (1-10)
-  overall: number;      // 总体能力 (自动计算)
-}
+// 重新导出篮球类型，方便其他模块使用
+export { BasketballPosition, BasketballSkills, POSITION_DETAILS } from './basketball';
+export { calculateOverallSkill, createDefaultBasketballSkills } from './basketball';
 
 // 球员信息
 export interface Player {
   id: string;
   name: string;
-  position: PlayerPosition;
-  skills: PlayerSkills;
+  position: BasketballPosition;  // 使用篮球位置
+  skills: BasketballSkills;      // 使用篮球能力
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,16 +33,9 @@ export interface GroupingConfig {
   playersPerTeam?: number;
 }
 
-// 位置显示名称
-export const POSITION_NAMES: Record<PlayerPosition, string> = {
-  GK: '守门员',
-  DEF: '后卫',
-  MID: '中场',
-  FWD: '前锋',
-};
+// 为了向后兼容，保留旧类型别名（已弃用）
+/** @deprecated 使用 BasketballPosition 代替 */
+export type PlayerPosition = BasketballPosition;
 
-// 计算总体能力
-export const calculateOverallSkill = (skills: PlayerSkills): number => {
-  const { speed, shooting, passing, defense, physical } = skills;
-  return Math.round((speed + shooting + passing + defense + physical) / 5);
-};
+/** @deprecated 使用 BasketballSkills 代替 */
+export type PlayerSkills = BasketballSkills;
