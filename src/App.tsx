@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Player, Team, GroupingConfig, PlayerPosition, calculateOverallSkill, POSITION_NAMES } from './types/player';
+import type { Player, Team, GroupingConfig, PlayerPosition } from './types/player';
+import { calculateOverallSkill, POSITION_NAMES } from './types/player';
 import { GroupingAlgorithm } from './utils/groupingAlgorithm';
 import { Storage } from './utils/storage';
 import './App.css';
@@ -43,16 +44,17 @@ function App() {
       return;
     }
 
-    const overall = calculateOverallSkill(skills);
+    const playerSkills = {
+      ...skills,
+      overall: 0,
+    };
+    playerSkills.overall = calculateOverallSkill(playerSkills);
 
     const newPlayer: Player = {
       id: `player-${Date.now()}`,
       name: playerName,
       position: playerPosition,
-      skills: {
-        ...skills,
-        overall,
-      },
+      skills: playerSkills,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

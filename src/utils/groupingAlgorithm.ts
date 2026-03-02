@@ -1,4 +1,4 @@
-import { Player, Team, GroupingConfig, PlayerPosition, calculateOverallSkill } from '../types/player';
+import type { Player, Team, GroupingConfig, PlayerPosition } from '../types/player';
 
 /**
  * 分组算法类

@@ -1,4 +1,4 @@
-import { Player } from '../types/player';
+import type { Player } from '../types/player';
 
 const STORAGE_KEY = 'player-grouping-data';
 
