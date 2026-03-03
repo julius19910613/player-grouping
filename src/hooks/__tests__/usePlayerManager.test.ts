@@ -54,7 +54,7 @@ describe('usePlayerManager', () => {
 
   describe('CRUD operations', () => {
     describe('addPlayer', () => {
-      it('should add a new player', () => {
+      it('should add a new player', async () => {
         const { result } = renderHook(() => usePlayerManager())
 
         const newPlayer = {
@@ -86,16 +86,19 @@ describe('usePlayerManager', () => {
           updatedAt: new Date()
         }
 
-        act(() => {
-          const validationResult = result.current.addPlayer(newPlayer)
-          expect(validationResult.isValid).toBe(true)
+        let validationResult: any;
+        await act(async () => {
+          validationResult = await result.current.addPlayer(newPlayer)
         })
 
-        expect(result.current.players.length).toBe(1)
+        expect(validationResult.isValid).toBe(true)
+        await waitFor(() => {
+          expect(result.current.players.length).toBe(1)
+        })
         expect(result.current.players[0].name).toBe('New Player')
       })
 
-      it('should generate unique ID for new player', () => {
+      it('should generate unique ID for new player', async () => {
         const { result } = renderHook(() => usePlayerManager())
 
         const skills = {
@@ -136,12 +139,14 @@ describe('usePlayerManager', () => {
           updatedAt: new Date()
         }
 
-        act(() => {
-          result.current.addPlayer(player1)
-          result.current.addPlayer(player2)
+        await act(async () => {
+          await result.current.addPlayer(player1)
+          await result.current.addPlayer(player2)
         })
 
-        expect(result.current.players.length).toBe(2)
+        await waitFor(() => {
+          expect(result.current.players.length).toBe(2)
+        })
         expect(result.current.players[0].id).not.toBe(result.current.players[1].id)
       })
 

@@ -41,6 +41,10 @@ class DatabaseService {
   // 防抖相关
   private saveTimer: NodeJS.Timeout | null = null;
   private pendingSave = false;
+  
+  // LocalStorage 数据结构
+  // 注意：使用不同的 key 避免与旧的 storage.ts 冲突
+  private localStorageKey = 'player-grouping-sqlite-fallback';
 
   /**
    * 检查是否已初始化
@@ -139,8 +143,9 @@ class DatabaseService {
    * @returns 查询结果数组
    */
   exec(sql: string, params: QueryParam[] = []): QueryResult {
-    if (!this.usingSQLite) {
-      throw new DatabaseError('SQLite not available, using LocalStorage fallback', 'SQLITE_UNAVAILABLE');
+    // 如果使用 LocalStorage 降级方案
+    if (this.usingLocalStorage) {
+      return this.execFallback(sql, params);
     }
     
     if (!this.db) {
@@ -173,8 +178,10 @@ class DatabaseService {
    * 执行 SQL 命令（INSERT/UPDATE/DELETE）
    */
   run(sql: string, params: QueryParam[] = []): void {
-    if (!this.usingSQLite) {
-      throw new DatabaseError('SQLite not available, using LocalStorage fallback', 'SQLITE_UNAVAILABLE');
+    // 如果使用 LocalStorage 降级方案
+    if (this.usingLocalStorage) {
+      this.runFallback(sql, params);
+      return;
     }
     
     if (!this.db) {
@@ -251,6 +258,12 @@ class DatabaseService {
    * 清空所有数据
    */
   async clear(): Promise<void> {
+    if (this.usingLocalStorage) {
+      this.saveLocalStorageData({ players: {}, skills: {} });
+      console.log('✅ LocalStorage 数据已清空');
+      return;
+    }
+
     if (!this.usingSQLite) {
       throw new DatabaseError('SQLite not available', 'SQLITE_UNAVAILABLE');
     }
@@ -274,7 +287,12 @@ class DatabaseService {
    * 检查是否有数据
    */
   hasData(): boolean {
-    if (!this.usingSQLite) return false;
+    if (this.usingLocalStorage) {
+      const data = this.getLocalStorageData();
+      return Object.keys(data.players).length > 0;
+    }
+    
+    if (!this.usingSQLite || !this.db) return false;
     
     const result = this.exec(SQL.COUNT_PLAYERS);
     return result[0]?.[0] > 0;
@@ -408,6 +426,264 @@ class DatabaseService {
     
     console.log('✅ 数据库已关闭');
   }
+
+  /**
+   * 从 LocalStorage 读取数据
+   * @private
+   */
+  private getLocalStorageData(): {
+    players: Record<string, any>;
+    skills: Record<string, any>;
+  } {
+    if (typeof localStorage === 'undefined') {
+      return { players: {}, skills: {} };
+    }
+    
+    const data = localStorage.getItem(this.localStorageKey);
+    if (!data) {
+      return { players: {}, skills: {} };
+    }
+    
+    try {
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('❌ 解析 LocalStorage 数据失败:', error);
+      return { players: {}, skills: {} };
+    }
+  }
+
+  /**
+   * 保存数据到 LocalStorage
+   * @private
+   */
+  private saveLocalStorageData(data: {
+    players: Record<string, any>;
+    skills: Record<string, any>;
+  }): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    
+    try {
+      localStorage.setItem(this.localStorageKey, JSON.stringify(data));
+    } catch (error) {
+      console.error('❌ 保存到 LocalStorage 失败:', error);
+    }
+  }
+
+  /**
+   * LocalStorage 降级查询实现
+   * @private
+   */
+  private execFallback(sql: string, params: QueryParam[] = []): QueryResult {
+    const data = this.getLocalStorageData();
+    const players = Object.values(data.players);
+    const skills = data.skills;
+    
+    // 处理 COUNT 查询
+    if (sql.includes('COUNT(*)')) {
+      if (sql.includes('FROM players')) {
+        return [[players.length]];
+      }
+      return [[0]];
+    }
+    
+    // 处理 SELECT 查询（JOIN players and player_skills）
+    if (sql.includes('SELECT') && sql.includes('FROM players p') && sql.includes('JOIN player_skills s')) {
+      let filteredPlayers = players;
+      
+      // 解析 WHERE 条件
+      if (sql.includes('WHERE')) {
+        const whereMatch = sql.match(/WHERE\s+p\.(\w+)\s*(=|LIKE)\s*\?/i);
+        if (whereMatch) {
+          const field = whereMatch[1];
+          const operator = whereMatch[2];
+          const value = params[0] as string;
+          
+          filteredPlayers = players.filter((player: any) => {
+            if (operator === '=') {
+              return player[field] === value;
+            } else if (operator === 'LIKE') {
+              const searchValue = value.replace(/%/g, '').toLowerCase();
+              return player[field]?.toLowerCase().includes(searchValue);
+            }
+            return true;
+          });
+        }
+      }
+      
+      // 映射为查询结果（模拟 JOIN）
+      const results: any[][] = filteredPlayers.map((player: any) => {
+        const skill = skills[player.id] || {};
+        return [
+          player.id,
+          player.name,
+          player.position,
+          player.created_at,
+          player.updated_at,
+          skill.two_point_shot || 50,
+          skill.three_point_shot || 50,
+          skill.free_throw || 50,
+          skill.passing || 50,
+          skill.ball_control || 50,
+          skill.court_vision || 50,
+          skill.perimeter_defense || 50,
+          skill.interior_defense || 50,
+          skill.steals || 50,
+          skill.blocks || 50,
+          skill.offensive_rebound || 50,
+          skill.defensive_rebound || 50,
+          skill.speed || 50,
+          skill.strength || 50,
+          skill.stamina || 50,
+          skill.vertical || 50,
+          skill.basketball_iq || 50,
+          skill.teamwork || 50,
+          skill.clutch || 50,
+          skill.overall || 50,
+        ];
+      });
+      
+      // 排序（ORDER BY created_at DESC）
+      if (sql.includes('ORDER BY p.created_at DESC')) {
+        results.sort((a, b) => new Date(b[3]).getTime() - new Date(a[3]).getTime());
+      }
+      
+      return results;
+    }
+    
+    return [];
+  }
+
+  /**
+   * LocalStorage 降级执行实现
+   * @private
+   */
+  private runFallback(sql: string, params: QueryParam[] = []): void {
+    const data = this.getLocalStorageData();
+    
+    // 处理 INSERT INTO players
+    if (sql.includes('INSERT INTO players')) {
+      const [id, name, position, createdAt, updatedAt] = params as [string, string, string, string, string];
+      data.players[id] = {
+        id,
+        name,
+        position,
+        created_at: createdAt,
+        updated_at: updatedAt,
+      };
+      this.saveLocalStorageData(data);
+      return;
+    }
+    
+    // 处理 INSERT INTO player_skills
+    if (sql.includes('INSERT INTO player_skills')) {
+      const [
+        playerId,
+        twoPointShot,
+        threePointShot,
+        freeThrow,
+        passing,
+        ballControl,
+        courtVision,
+        perimeterDefense,
+        interiorDefense,
+        steals,
+        blocks,
+        offensiveRebound,
+        defensiveRebound,
+        speed,
+        strength,
+        stamina,
+        vertical,
+        basketballIQ,
+        teamwork,
+        clutch,
+        overall,
+      ] = params as any[];
+      
+      data.skills[playerId] = {
+        player_id: playerId,
+        two_point_shot: twoPointShot,
+        three_point_shot: threePointShot,
+        free_throw: freeThrow,
+        passing: passing,
+        ball_control: ballControl,
+        court_vision: courtVision,
+        perimeter_defense: perimeterDefense,
+        interior_defense: interiorDefense,
+        steals: steals,
+        blocks: blocks,
+        offensive_rebound: offensiveRebound,
+        defensive_rebound: defensiveRebound,
+        speed: speed,
+        strength: strength,
+        stamina: stamina,
+        vertical: vertical,
+        basketball_iq: basketballIQ,
+        teamwork: teamwork,
+        clutch: clutch,
+        overall: overall,
+      };
+      this.saveLocalStorageData(data);
+      return;
+    }
+    
+    // 处理 UPDATE players
+    if (sql.includes('UPDATE players SET')) {
+      const [name, position, updatedAt, id] = params.slice(-4) as [string | null, string | null, string, string];
+      const player = data.players[id];
+      if (player) {
+        if (name !== null) player.name = name;
+        if (position !== null) player.position = position;
+        player.updated_at = updatedAt;
+        this.saveLocalStorageData(data);
+      }
+      return;
+    }
+    
+    // 处理 UPDATE player_skills
+    if (sql.includes('UPDATE player_skills SET')) {
+      const playerId = params[params.length - 1] as string;
+      const skill = data.skills[playerId];
+      if (skill) {
+        const fields = [
+          'two_point_shot', 'three_point_shot', 'free_throw',
+          'passing', 'ball_control', 'court_vision',
+          'perimeter_defense', 'interior_defense', 'steals', 'blocks',
+          'offensive_rebound', 'defensive_rebound',
+          'speed', 'strength', 'stamina', 'vertical',
+          'basketball_iq', 'teamwork', 'clutch', 'overall',
+        ];
+        
+        fields.forEach((field, index) => {
+          const value = params[index];
+          if (value !== null) {
+            skill[field] = value;
+          }
+        });
+        
+        this.saveLocalStorageData(data);
+      }
+      return;
+    }
+    
+    // 处理 DELETE FROM players
+    if (sql.includes('DELETE FROM players')) {
+      const id = params[0] as string;
+      delete data.players[id];
+      delete data.skills[id];
+      this.saveLocalStorageData(data);
+      return;
+    }
+    
+    // 处理其他 DELETE 操作
+    if (sql.includes('DELETE FROM')) {
+      // 其他表的清空操作（如 grouping_history）在 LocalStorage 模式下暂不处理
+      return;
+    }
+  }
+
 }
 
 /**
