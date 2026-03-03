@@ -248,16 +248,16 @@ export function calculateOverallSkill(
 
   // 获取当前位置的权重配置
   const weights = positionWeights[position];
-  
+
   // 计算加权平均分
   let totalScore = 0;
   let totalWeight = 0;
 
-  for (const skill in skills) {
+  for (const skill in weights) {
     const skillKey = skill as keyof Omit<BasketballSkills, 'overall'>;
     const weight = weights[skillKey];
-    const value = skills[skillKey];
-    
+    const value = skills[skillKey] || 0; // Safeguard if skill missing
+
     totalScore += value * weight;
     totalWeight += weight;
   }

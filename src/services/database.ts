@@ -9,18 +9,19 @@
  * - 防抖保存优化
  */
 
-import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
+import initSqlJs from 'sql.js';
+import type { Database as SqlJsDatabase } from 'sql.js';
 import { openDB } from 'idb';
 import type { IDBPDatabase } from 'idb';
-import { 
-  SQL, 
-  DB_CONFIG, 
+import {
+  SQL,
+  DB_CONFIG,
   DatabaseError,
 } from '../types/database';
 import type {
   DatabaseStatus,
   QueryParam,
-  QueryResult 
+  QueryResult
 } from '../types/database';
 
 /**
@@ -37,11 +38,11 @@ class DatabaseService {
   private initialized = false;
   private usingSQLite = false;
   private usingLocalStorage = false;
-  
+
   // 防抖相关
   private saveTimer: NodeJS.Timeout | null = null;
   private pendingSave = false;
-  
+
   // LocalStorage 数据结构
   // 注意：使用不同的 key 避免与旧的 storage.ts 冲突
   private localStorageKey = 'player-grouping-sqlite-fallback';
@@ -68,7 +69,7 @@ class DatabaseService {
       console.log('✅ SQLite 数据库初始化成功');
     } catch (error) {
       console.error('❌ SQLite 初始化失败，降级到 LocalStorage:', error);
-      
+
       // 降级到 LocalStorage
       this.usingSQLite = false;
       this.usingLocalStorage = true;
@@ -128,10 +129,10 @@ class DatabaseService {
       this.db.run(SQL.CREATE_SKILLS_TABLE);
       this.db.run(SQL.CREATE_HISTORY_TABLE);
       this.db.run(SQL.CREATE_INDEXES);
-      
+
       // 立即保存一次
       this.saveImmediate();
-      
+
       console.log('✅ 数据库表创建成功');
     } catch (error) {
       throw new DatabaseError('Failed to create tables', 'CREATE_TABLE_ERROR', error as Error);
@@ -147,7 +148,7 @@ class DatabaseService {
     if (this.usingLocalStorage) {
       return this.execFallback(sql, params);
     }
-    
+
     if (!this.db) {
       throw new DatabaseError('Database not initialized', 'NOT_INITIALIZED');
     }
@@ -183,7 +184,7 @@ class DatabaseService {
       this.runFallback(sql, params);
       return;
     }
-    
+
     if (!this.db) {
       throw new DatabaseError('Database not initialized', 'NOT_INITIALIZED');
     }
@@ -191,7 +192,7 @@ class DatabaseService {
     try {
       // 将 QueryParam[] 转换为 sql.js 兼容的类型
       this.db.run(sql, params as any);
-      
+
       // 标记需要保存（防抖）
       this.scheduleSave();
     } catch (error) {
@@ -209,11 +210,11 @@ class DatabaseService {
    */
   private scheduleSave(): void {
     this.pendingSave = true;
-    
+
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
     }
-    
+
     this.saveTimer = setTimeout(() => {
       this.saveImmediate();
     }, DEBOUNCE_DELAY);
@@ -291,9 +292,9 @@ class DatabaseService {
       const data = this.getLocalStorageData();
       return Object.keys(data.players).length > 0;
     }
-    
+
     if (!this.usingSQLite || !this.db) return false;
-    
+
     const result = this.exec(SQL.COUNT_PLAYERS);
     return result[0]?.[0] > 0;
   }
@@ -328,7 +329,7 @@ class DatabaseService {
     if (!this.usingSQLite || !this.db) {
       throw new DatabaseError('SQLite not available', 'SQLITE_UNAVAILABLE');
     }
-    
+
     const array = this.db.export();
     return array.buffer.slice(array.byteOffset, array.byteOffset + array.byteLength) as ArrayBuffer;
   }
@@ -423,7 +424,7 @@ class DatabaseService {
     this.initialized = false;
     this.usingSQLite = false;
     this.usingLocalStorage = false;
-    
+
     console.log('✅ 数据库已关闭');
   }
 
@@ -438,12 +439,12 @@ class DatabaseService {
     if (typeof localStorage === 'undefined') {
       return { players: {}, skills: {} };
     }
-    
+
     const data = localStorage.getItem(this.localStorageKey);
     if (!data) {
       return { players: {}, skills: {} };
     }
-    
+
     try {
       return JSON.parse(data);
     } catch (error) {
@@ -463,7 +464,7 @@ class DatabaseService {
     if (typeof localStorage === 'undefined') {
       return;
     }
-    
+
     try {
       localStorage.setItem(this.localStorageKey, JSON.stringify(data));
     } catch (error) {
@@ -479,7 +480,7 @@ class DatabaseService {
     const data = this.getLocalStorageData();
     const players = Object.values(data.players);
     const skills = data.skills;
-    
+
     // 处理 COUNT 查询
     if (sql.includes('COUNT(*)')) {
       if (sql.includes('FROM players')) {
@@ -487,11 +488,11 @@ class DatabaseService {
       }
       return [[0]];
     }
-    
+
     // 处理 SELECT 查询（JOIN players and player_skills）
     if (sql.includes('SELECT') && sql.includes('FROM players p') && sql.includes('JOIN player_skills s')) {
       let filteredPlayers = players;
-      
+
       // 解析 WHERE 条件
       if (sql.includes('WHERE')) {
         const whereMatch = sql.match(/WHERE\s+p\.(\w+)\s*(=|LIKE)\s*\?/i);
@@ -499,7 +500,7 @@ class DatabaseService {
           const field = whereMatch[1];
           const operator = whereMatch[2];
           const value = params[0] as string;
-          
+
           filteredPlayers = players.filter((player: any) => {
             if (operator === '=') {
               return player[field] === value;
@@ -511,7 +512,7 @@ class DatabaseService {
           });
         }
       }
-      
+
       // 映射为查询结果（模拟 JOIN）
       const results: any[][] = filteredPlayers.map((player: any) => {
         const skill = skills[player.id] || {};
@@ -543,15 +544,15 @@ class DatabaseService {
           skill.overall || 50,
         ];
       });
-      
+
       // 排序（ORDER BY created_at DESC）
       if (sql.includes('ORDER BY p.created_at DESC')) {
         results.sort((a, b) => new Date(b[3]).getTime() - new Date(a[3]).getTime());
       }
-      
+
       return results;
     }
-    
+
     return [];
   }
 
@@ -561,7 +562,7 @@ class DatabaseService {
    */
   private runFallback(sql: string, params: QueryParam[] = []): void {
     const data = this.getLocalStorageData();
-    
+
     // 处理 INSERT INTO players
     if (sql.includes('INSERT INTO players')) {
       const [id, name, position, createdAt, updatedAt] = params as [string, string, string, string, string];
@@ -575,7 +576,7 @@ class DatabaseService {
       this.saveLocalStorageData(data);
       return;
     }
-    
+
     // 处理 INSERT INTO player_skills
     if (sql.includes('INSERT INTO player_skills')) {
       const [
@@ -601,7 +602,7 @@ class DatabaseService {
         clutch,
         overall,
       ] = params as any[];
-      
+
       data.skills[playerId] = {
         player_id: playerId,
         two_point_shot: twoPointShot,
@@ -628,7 +629,7 @@ class DatabaseService {
       this.saveLocalStorageData(data);
       return;
     }
-    
+
     // 处理 UPDATE players
     if (sql.includes('UPDATE players SET')) {
       const [name, position, updatedAt, id] = params.slice(-4) as [string | null, string | null, string, string];
@@ -641,7 +642,7 @@ class DatabaseService {
       }
       return;
     }
-    
+
     // 处理 UPDATE player_skills
     if (sql.includes('UPDATE player_skills SET')) {
       const playerId = params[params.length - 1] as string;
@@ -655,19 +656,19 @@ class DatabaseService {
           'speed', 'strength', 'stamina', 'vertical',
           'basketball_iq', 'teamwork', 'clutch', 'overall',
         ];
-        
+
         fields.forEach((field, index) => {
           const value = params[index];
           if (value !== null) {
             skill[field] = value;
           }
         });
-        
+
         this.saveLocalStorageData(data);
       }
       return;
     }
-    
+
     // 处理 DELETE FROM players
     if (sql.includes('DELETE FROM players')) {
       const id = params[0] as string;
@@ -676,7 +677,7 @@ class DatabaseService {
       this.saveLocalStorageData(data);
       return;
     }
-    
+
     // 处理其他 DELETE 操作
     if (sql.includes('DELETE FROM')) {
       // 其他表的清空操作（如 grouping_history）在 LocalStorage 模式下暂不处理

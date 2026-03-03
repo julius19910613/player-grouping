@@ -33,7 +33,7 @@ export class BackupManager {
     if (this.idb) return this.idb;
 
     this.idb = await openDB(BACKUP_DB_NAME, 1, {
-      upgrade(db) {
+      upgrade(db: any) {
         if (!db.objectStoreNames.contains(BACKUP_STORE)) {
           const store = db.createObjectStore(BACKUP_STORE, { keyPath: 'id' });
           store.createIndex('timestamp', 'timestamp');
@@ -108,7 +108,7 @@ export class BackupManager {
       // 恢复 LocalStorage 数据
       if (backup.localStorage?.players) {
         localStorage.setItem(STORAGE_KEY, backup.localStorage.players);
-        
+
         const players = JSON.parse(backup.localStorage.players);
         console.log('✅ 已从备份恢复:', backupId, `(${players.length} 个球员)`);
 
@@ -144,8 +144,8 @@ export class BackupManager {
 
       return backups
         .map((backup) => {
-          const playerCount = backup.localStorage?.players 
-            ? JSON.parse(backup.localStorage.players).length 
+          const playerCount = backup.localStorage?.players
+            ? JSON.parse(backup.localStorage.players).length
             : 0;
 
           return {
@@ -232,7 +232,7 @@ export class BackupManager {
   async autoBackupBeforeMigration(): Promise<string | null> {
     try {
       const playersJson = localStorage.getItem(STORAGE_KEY);
-      
+
       if (!playersJson) {
         console.log('ℹ️  无需备份：没有旧数据');
         return null;
