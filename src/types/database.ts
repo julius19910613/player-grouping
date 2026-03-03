@@ -193,3 +193,105 @@ export class BackupError extends DatabaseError {
     this.name = 'BackupError';
   }
 }
+
+/**
+ * SQL 语句常量
+ */
+export const SQL = {
+  // 创建表
+  CREATE_PLAYERS_TABLE: `
+    CREATE TABLE IF NOT EXISTS players (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      position TEXT NOT NULL CHECK(position IN ('PG', 'SG', 'SF', 'PF', 'C', 'UTILITY')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `,
+  
+  CREATE_SKILLS_TABLE: `
+    CREATE TABLE IF NOT EXISTS player_skills (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      player_id TEXT NOT NULL UNIQUE,
+      two_point_shot INTEGER DEFAULT 50 CHECK(two_point_shot BETWEEN 1 AND 99),
+      three_point_shot INTEGER DEFAULT 50 CHECK(three_point_shot BETWEEN 1 AND 99),
+      free_throw INTEGER DEFAULT 50 CHECK(free_throw BETWEEN 1 AND 99),
+      passing INTEGER DEFAULT 50 CHECK(passing BETWEEN 1 AND 99),
+      ball_control INTEGER DEFAULT 50 CHECK(ball_control BETWEEN 1 AND 99),
+      court_vision INTEGER DEFAULT 50 CHECK(court_vision BETWEEN 1 AND 99),
+      perimeter_defense INTEGER DEFAULT 50 CHECK(perimeter_defense BETWEEN 1 AND 99),
+      interior_defense INTEGER DEFAULT 50 CHECK(interior_defense BETWEEN 1 AND 99),
+      steals INTEGER DEFAULT 50 CHECK(steals BETWEEN 1 AND 99),
+      blocks INTEGER DEFAULT 50 CHECK(blocks BETWEEN 1 AND 99),
+      offensive_rebound INTEGER DEFAULT 50 CHECK(offensive_rebound BETWEEN 1 AND 99),
+      defensive_rebound INTEGER DEFAULT 50 CHECK(defensive_rebound BETWEEN 1 AND 99),
+      speed INTEGER DEFAULT 50 CHECK(speed BETWEEN 1 AND 99),
+      strength INTEGER DEFAULT 50 CHECK(strength BETWEEN 1 AND 99),
+      stamina INTEGER DEFAULT 50 CHECK(stamina BETWEEN 1 AND 99),
+      vertical INTEGER DEFAULT 50 CHECK(vertical BETWEEN 1 AND 99),
+      basketball_iq INTEGER DEFAULT 50 CHECK(basketball_iq BETWEEN 1 AND 99),
+      teamwork INTEGER DEFAULT 50 CHECK(teamwork BETWEEN 1 AND 99),
+      clutch INTEGER DEFAULT 50 CHECK(clutch BETWEEN 1 AND 99),
+      overall INTEGER DEFAULT 50,
+      FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE
+    );
+  `,
+  
+  CREATE_HISTORY_TABLE: `
+    CREATE TABLE IF NOT EXISTS grouping_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      mode TEXT NOT NULL CHECK(mode IN ('5v5', '3v3', 'custom')),
+      team_count INTEGER NOT NULL,
+      player_count INTEGER NOT NULL,
+      balance_score REAL,
+      data TEXT NOT NULL,
+      note TEXT
+    );
+  `,
+  
+  // 索引
+  CREATE_INDEXES: `
+    CREATE INDEX IF NOT EXISTS idx_players_position ON players(position);
+    CREATE INDEX IF NOT EXISTS idx_player_skills_player_id ON player_skills(player_id);
+    CREATE INDEX IF NOT EXISTS idx_grouping_history_created_at ON grouping_history(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_grouping_history_mode ON grouping_history(mode);
+  `,
+  
+  // 查询
+  COUNT_PLAYERS: 'SELECT COUNT(*) FROM players;',
+  COUNT_HISTORY: 'SELECT COUNT(*) FROM grouping_history;',
+  
+  SELECT_ALL_PLAYERS: `
+    SELECT 
+      p.id, p.name, p.position, p.created_at, p.updated_at,
+      s.two_point_shot, s.three_point_shot, s.free_throw,
+      s.passing, s.ball_control, s.court_vision,
+      s.perimeter_defense, s.interior_defense, s.steals, s.blocks,
+      s.offensive_rebound, s.defensive_rebound,
+      s.speed, s.strength, s.stamina, s.vertical,
+      s.basketball_iq, s.teamwork, s.clutch, s.overall
+    FROM players p
+    JOIN player_skills s ON p.id = s.player_id
+    ORDER BY p.created_at DESC
+  `,
+  
+  // 清空表
+  DELETE_ALL_HISTORY: 'DELETE FROM grouping_history;',
+  DELETE_ALL_SKILLS: 'DELETE FROM player_skills;',
+  DELETE_ALL_PLAYERS: 'DELETE FROM players;',
+} as const;
+
+/**
+ * 数据库配置常量
+ */
+export const DB_CONFIG: DatabaseConfig = {
+  dbName: 'player-grouping-db',
+  storeName: 'sqlite-data',
+  version: 1,
+} as const;
+
+/**
+ * 备份文件版本
+ */
+export const BACKUP_VERSION = 1;
