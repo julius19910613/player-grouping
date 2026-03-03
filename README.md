@@ -51,8 +51,61 @@
 - **样式方案：** CSS Modules
 - **图表库：** Chart.js + react-chartjs-2
 - **状态管理：** React Hooks
-- **数据存储：** LocalStorage
+- **数据存储：** SQLite (sql.js) + IndexedDB
 - **主题系统：** CSS Variables
+
+### 💾 数据库架构
+
+#### SQLite 表结构
+
+**players 表（球员基本信息）**
+```sql
+CREATE TABLE players (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  position TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+**player_skills 表（球员能力）**
+```sql
+CREATE TABLE player_skills (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id TEXT NOT NULL UNIQUE,
+  -- 19 项能力值 (1-99)
+  two_point_shot, three_point_shot, free_throw,
+  passing, ball_control, court_vision,
+  perimeter_defense, interior_defense, steals, blocks,
+  offensive_rebound, defensive_rebound,
+  speed, strength, stamina, vertical,
+  basketball_iq, teamwork, clutch,
+  overall INTEGER DEFAULT 50,
+  FOREIGN KEY (player_id) REFERENCES players(id)
+);
+```
+
+**grouping_history 表（分组历史）**
+```sql
+CREATE TABLE grouping_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  mode TEXT NOT NULL,  -- 5v5, 3v3, custom
+  team_count INTEGER,
+  player_count INTEGER,
+  balance_score REAL,
+  data TEXT NOT NULL,  -- JSON 格式
+  note TEXT
+);
+```
+
+#### 数据持久化
+
+- **SQLite**: 使用 sql.js (WebAssembly) 在浏览器中运行
+- **IndexedDB**: 持久化 SQLite 数据库文件（支持 50-500MB）
+- **自动备份**: 迁移前自动备份数据到 IndexedDB
+- **降级方案**: SQLite 失败时自动回退到 LocalStorage
 
 ## 🚀 快速开始
 
@@ -111,15 +164,24 @@ player-grouping/
 │   │   ├── Charts/          # 图表组件
 │   │   ├── Navigation/      # 导航组件
 │   │   └── common/          # 通用组件
+│   ├── services/            # 数据库服务
+│   │   └── database.ts      # SQLite 数据库服务
+│   ├── repositories/        # 数据访问层
+│   │   ├── player.repository.ts    # 球员仓库
+│   │   └── grouping.repository.ts  # 分组历史仓库
 │   ├── hooks/               # 自定义 Hooks
 │   │   ├── usePlayerManager.ts  # 球员管理 Hook
 │   │   └── useTheme.ts      # 主题管理 Hook
 │   ├── utils/               # 工具函数
 │   │   ├── basketballGroupingAlgorithm.ts  # 篮球分组算法
-│   │   ├── storage.ts       # 本地存储工具
+│   │   ├── storage.ts       # 本地存储工具（旧）
+│   │   ├── backup.ts        # 备份恢复工具
+│   │   ├── migration.ts     # 数据迁移工具
 │   │   └── chartUtils.ts    # 图表工具函数
 │   ├── types/               # TypeScript 类型定义
-│   │   └── player.ts        # 球员相关类型
+│   │   ├── player.ts        # 球员相关类型
+│   │   ├── basketball.ts    # 篮球相关类型
+│   │   └── database.ts      # 数据库类型定义
 │   ├── styles/              # 全局样式
 │   │   └── theme.css        # 主题样式
 │   ├── App.tsx              # 主应用组件
@@ -127,7 +189,8 @@ player-grouping/
 ├── design/                  # 设计文档
 │   ├── ROADMAP.md          # 产品路线图
 │   ├── FEATURES.md         # 功能设计
-│   └── IMPLEMENTATION.md   # 实现计划
+│   ├── IMPLEMENTATION.md   # 实现计划
+│   └── SQLITE_MIGRATION_FINAL_V2.md  # SQLite 迁移方案
 ├── public/                  # 静态资源
 └── package.json
 ```
@@ -172,7 +235,31 @@ player-grouping/
 
 - **编辑球员**：点击球员卡片上的编辑按钮
 - **删除球员**：点击球员卡片上的删除按钮
-- **数据备份**：所有数据自动保存在本地浏览器中
+- **数据备份**：所有数据自动保存在 SQLite 数据库中，并持久化到 IndexedDB
+- **自动迁移**：首次启动时自动从 LocalStorage 迁移旧数据到 SQLite
+
+### 数据迁移
+
+如果您之前使用过旧版本（LocalStorage 存储）：
+
+1. **自动迁移**
+   - 首次启动新版本时，系统会自动检测旧数据
+   - 自动创建备份并迁移到 SQLite
+   - 迁移成功后自动清除 LocalStorage
+
+2. **手动回滚**
+   - 如需回退，可以在浏览器控制台执行：
+   ```javascript
+   import { rollbackMigration } from './utils/migration';
+   await rollbackMigration();
+   ```
+
+3. **查看迁移状态**
+   ```javascript
+   import { getMigrationStatus } from './utils/migration';
+   const status = await getMigrationStatus();
+   console.log(status);
+   ```
 
 ### 主题设置
 
@@ -328,9 +415,12 @@ src/
 
 ## 📝 未来计划
 
-- [ ] 支持导入/导出球员数据
+- [x] SQLite 数据库迁移（已完成）
+- [x] 分组历史记录功能（已完成）
+- [x] 数据备份和恢复（已完成）
+- [ ] 支持导入/导出球员数据（SQLite 文件）
 - [ ] 添加更多分组算法
-- [ ] 支持历史记录查看
+- [ ] 支持历史记录查看和管理界面
 - [ ] 添加球员头像上传
 - [ ] 支持团队战术设置
 - [ ] 添加多语言支持
