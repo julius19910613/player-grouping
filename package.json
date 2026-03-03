@@ -13,14 +13,17 @@
     "test:coverage": "vitest --coverage",
     "test:watch": "vitest --watch",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "gh-pages -d dist",
+    "backup": "npx tsx scripts/backup-localstorage.ts"
   },
   "dependencies": {
     "chart.js": "^4.5.1",
     "framer-motion": "^12.34.4",
+    "idb": "^8.0.0",
     "react": "^19.2.0",
     "react-chartjs-2": "^5.3.1",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "sql.js": "^1.10.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -29,6 +32,7 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@types/sql.js": "^1.0.0",
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/ui": "^4.0.18",
     "eslint": "^9.39.1",

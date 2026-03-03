@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# SQLite Migration
+backups/
+.sqlite-migration/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
