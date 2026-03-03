@@ -1,11 +1,19 @@
 import React from 'react';
 import { POSITION_DETAILS } from '../types/basketball';
-import type { Player } from '../hooks/usePlayerManager';
+import type { BasketballPosition, BasketballSkills } from '../types/basketball';
 import { SkillRadarChart } from './SkillRadarChart';
 
+// 通用球员类型
+interface PlayerBase {
+  id: string;
+  name: string;
+  position: BasketballPosition;
+  skills: BasketballSkills;
+}
+
 interface PlayerCardProps {
-  player: Player;
-  onEdit?: (player: Player) => void;
+  player: PlayerBase;
+  onEdit?: (player: PlayerBase) => void;
   onDelete?: (id: string) => void;
 }
 

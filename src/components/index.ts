@@ -4,3 +4,5 @@ export { SkillRadarChart } from './SkillRadarChart';
 export { PlayerForm } from './PlayerForm';
 export { PlayerCard } from './PlayerCard';
 export { EditPlayerModal } from './EditPlayerModal';
+export { TeamComparisonChart } from './TeamComparisonChart';
+export { GroupingResultDisplay } from './GroupingResultDisplay';

@@ -332,15 +332,23 @@ export function usePlayerManager() {
 
 ---
 
-#### Day 3-4: 可视化图表
+#### Day 3-4: 可视化图表 ✅
 **目标：** 实现能力雷达图和团队对比图
 
 **任务清单：**
-- [ ] 集成 Chart.js 或 ECharts
-- [ ] 实现球员能力雷达图
-- [ ] 实现团队实力对比图
-- [ ] 实现分组结果可视化
-- [ ] 添加导出图片功能
+- [x] 集成 Chart.js 或 ECharts
+- [x] 实现球员能力雷达图
+- [x] 实现团队实力对比图
+- [x] 实现分组结果可视化
+- [ ] 添加导出图片功能（待后续）
+
+**完成日期：** 2026-03-03
+
+**实现细节：**
+- ✅ 安装 chart.js 和 react-chartjs-2
+- ✅ 更新 SkillRadarChart.tsx - 使用 Chart.js Radar 实现真正的雷达图
+- ✅ 创建 TeamComparisonChart.tsx - 团队实力柱状图对比
+- ✅ 创建 GroupingResultDisplay.tsx - 分组结果可视化展示
 
 **图表实现：**
 ```typescript
