@@ -1,0 +1,152 @@
+/* 篮球主题 CSS 变量 */
+
+:root {
+  /* 主色调 - 篮球橙色 */
+  --color-primary: #FF6B35;
+  --color-primary-dark: #E55A2B;
+  --color-primary-light: #FF8C5A;
+  --color-primary-bg: #FFF4EF;
+
+  /* 位置颜色 */
+  --color-pg: #3B82F6;  /* 控球后卫 - 蓝 */
+  --color-sg: #EF4444;  /* 得分后卫 - 红 */
+  --color-sf: #F59E0B;  /* 小前锋 - 橙 */
+  --color-pf: #10B981;  /* 大前锋 - 绿 */
+  --color-c: #8B5CF6;   /* 中锋 - 紫 */
+  --color-utility: #6B7280;  /* 万金油 - 灰 */
+
+  /* 中性色 */
+  --color-text: #1F2937;
+  --color-text-secondary: #6B7280;
+  --color-text-light: #9CA3AF;
+  --color-background: #FFFFFF;
+  --color-background-secondary: #F9FAFB;
+  --color-border: #E5E7EB;
+  --color-border-light: #F3F4F6;
+
+  /* 状态色 */
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
+
+  /* 间距 */
+  --spacing-xs: 0.25rem;   /* 4px */
+  --spacing-sm: 0.5rem;    /* 8px */
+  --spacing-md: 1rem;      /* 16px */
+  --spacing-lg: 1.5rem;    /* 24px */
+  --spacing-xl: 2rem;      /* 32px */
+  --spacing-2xl: 3rem;     /* 48px */
+
+  /* 圆角 */
+  --radius-sm: 0.25rem;    /* 4px */
+  --radius-md: 0.5rem;     /* 8px */
+  --radius-lg: 1rem;       /* 16px */
+  --radius-xl: 1.5rem;     /* 24px */
+  --radius-full: 9999px;
+
+  /* 阴影 */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.2);
+
+  /* 字体 */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-size-xs: 0.75rem;   /* 12px */
+  --font-size-sm: 0.875rem;  /* 14px */
+  --font-size-base: 1rem;    /* 16px */
+  --font-size-lg: 1.125rem;  /* 18px */
+  --font-size-xl: 1.25rem;   /* 20px */
+  --font-size-2xl: 1.5rem;   /* 24px */
+  --font-size-3xl: 2rem;     /* 32px */
+
+  /* 动画 */
+  --transition-fast: 150ms ease;
+  --transition-normal: 250ms ease;
+  --transition-slow: 350ms ease;
+
+  /* 层级 */
+  --z-dropdown: 100;
+  --z-modal: 1000;
+  --z-tooltip: 1100;
+  --z-toast: 1200;
+}
+
+/* 深色模式 */
+[data-theme="dark"] {
+  --color-text: #F9FAFB;
+  --color-text-secondary: #D1D5DB;
+  --color-text-light: #9CA3AF;
+  --color-background: #111827;
+  --color-background-secondary: #1F2937;
+  --color-border: #374151;
+  --color-border-light: #4B5563;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
+}
+
+/* 全局样式 */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  background-color: var(--color-background-secondary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 位置颜色类 */
+.position-pg { color: var(--color-pg); }
+.position-sg { color: var(--color-sg); }
+.position-sf { color: var(--color-sf); }
+.position-pf { color: var(--color-pf); }
+.position-c { color: var(--color-c); }
+.position-utility { color: var(--color-utility); }
+
+.bg-pg { background-color: var(--color-pg); }
+.bg-sg { background-color: var(--color-sg); }
+.bg-sf { background-color: var(--color-sf); }
+.bg-pf { background-color: var(--color-pf); }
+.bg-c { background-color: var(--color-c); }
+.bg-utility { background-color: var(--color-utility); }
+
+/* 通用组件样式 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-dark);
+}
+
+.card {
+  background-color: var(--color-background);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
