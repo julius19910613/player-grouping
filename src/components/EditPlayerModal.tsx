@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { BasketballPosition, BasketballSkills, createDefaultBasketballSkills, calculateOverallSkill, POSITION_DETAILS } from '../types/basketball';
-import { Player } from '../hooks/usePlayerManager';
+import { BasketballPosition, calculateOverallSkill, POSITION_DETAILS } from '../types/basketball';
+import type { BasketballSkills } from '../types/basketball';
+import type { Player } from '../hooks/usePlayerManager';
 import { PositionSelect } from './PositionSelect';
 import { SkillSlider } from './SkillSlider';
 

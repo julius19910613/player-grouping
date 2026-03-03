@@ -25,7 +25,7 @@ export const PositionSelect: React.FC<PositionSelectProps> = ({ value, onChange 
           const details = POSITION_DETAILS[position];
           return (
             <option key={position} value={position}>
-              {details.icon} {details.chineseName} ({details.englishName})
+              {details.icon} {details.name} ({details.englishName})
             </option>
           );
         })}

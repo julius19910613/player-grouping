@@ -1,9 +1,14 @@
 // 从 basketball.ts 导入篮球相关类型
-import { BasketballPosition, BasketballSkills, POSITION_DETAILS } from './basketball';
+import { BasketballPosition } from './basketball';
+import type { BasketballSkills } from './basketball';
 
 // 重新导出篮球类型，方便其他模块使用
-export { BasketballPosition, BasketballSkills, POSITION_DETAILS } from './basketball';
+export { BasketballPosition, POSITION_DETAILS } from './basketball';
 export { calculateOverallSkill, createDefaultBasketballSkills } from './basketball';
+export type { BasketballSkills } from './basketball';
+
+// PositionDetail 类型
+export type { PositionDetail } from './basketball';
 
 // 球员信息
 export interface Player {

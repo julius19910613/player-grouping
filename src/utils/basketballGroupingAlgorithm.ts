@@ -1,4 +1,5 @@
-import { BasketballPosition, BasketballSkills } from '../types/basketball';
+import { BasketballPosition } from '../types/basketball';
+import type { BasketballSkills } from '../types/basketball';
 
 // Player 类型定义
 export interface BasketballPlayer {

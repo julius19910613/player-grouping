@@ -1,12 +1,14 @@
-// 篮球位置枚举
-export enum BasketballPosition {
-  PG = 'PG',           // 控球后卫 (Point Guard)
-  SG = 'SG',           // 得分后卫 (Shooting Guard)
-  SF = 'SF',           // 小前锋 (Small Forward)
-  PF = 'PF',           // 大前锋 (Power Forward)
-  C = 'C',             // 中锋 (Center)
-  UTILITY = 'UTILITY'  // 万金油 (可打多个位置)
-}
+// 篮球位置常量
+export const BasketballPosition = {
+  PG: 'PG',           // 控球后卫 (Point Guard)
+  SG: 'SG',           // 得分后卫 (Shooting Guard)
+  SF: 'SF',           // 小前锋 (Small Forward)
+  PF: 'PF',           // 大前锋 (Power Forward)
+  C: 'C',             // 中锋 (Center)
+  UTILITY: 'UTILITY'  // 万金油 (可打多个位置)
+} as const;
+
+export type BasketballPosition = typeof BasketballPosition[keyof typeof BasketballPosition];
 
 // 篮球能力评估接口
 export interface BasketballSkills {

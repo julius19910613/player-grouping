@@ -1,5 +1,6 @@
 import React from 'react';
-import { BasketballSkills, BasketballPosition, POSITION_DETAILS } from '../types/basketball';
+import { BasketballPosition, POSITION_DETAILS } from '../types/basketball';
+import type { BasketballSkills } from '../types/basketball';
 
 interface SkillRadarChartProps {
   skills: BasketballSkills;
@@ -14,29 +15,6 @@ const SKILL_CATEGORIES = {
   '篮板': ['offensiveRebound', 'defensiveRebound'],
   '身体素质': ['speed', 'strength', 'stamina', 'vertical'],
   '篮球智商': ['basketballIQ', 'teamwork', 'clutch']
-};
-
-// 能力中文名映射
-const SKILL_NAMES: Record<string, string> = {
-  twoPointShot: '两分投篮',
-  threePointShot: '三分投篮',
-  freeThrow: '罚球',
-  passing: '传球',
-  ballControl: '控球',
-  courtVision: '场上视野',
-  perimeterDefense: '外线防守',
-  interiorDefense: '内线防守',
-  steals: '抢断',
-  blocks: '盖帽',
-  offensiveRebound: '进攻篮板',
-  defensiveRebound: '防守篮板',
-  speed: '速度',
-  strength: '力量',
-  stamina: '耐力',
-  vertical: '弹跳',
-  basketballIQ: '篮球智商',
-  teamwork: '团队配合',
-  clutch: '关键时刻'
 };
 
 export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({ skills, position }) => {
@@ -56,7 +34,7 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({ skills, positi
       border: `2px solid ${positionDetails.color}`
     }}>
       <h4 style={{ margin: '0 0 12px 0', color: positionDetails.color }}>
-        {positionDetails.icon} {positionDetails.chineseName} 能力分析
+        {positionDetails.icon} {positionDetails.name} 能力分析
       </h4>
       
       {/* 简易条形图 */}

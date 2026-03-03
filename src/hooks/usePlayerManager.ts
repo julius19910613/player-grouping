@@ -1,5 +1,6 @@
-import { useState, useCallback, useMemo } from 'react';
-import { BasketballPosition, BasketballSkills, createDefaultBasketballSkills, calculateOverallSkill } from '../types/basketball';
+import { useState, useCallback } from 'react';
+import { BasketballPosition, calculateOverallSkill } from '../types/basketball';
+import type { BasketballSkills } from '../types/basketball';
 
 // 球员接口
 export interface Player {
@@ -197,11 +198,6 @@ export function usePlayerManager(initialPlayers: Player[] = []): UsePlayerManage
   const clearError = useCallback(() => {
     setError(null);
   }, []);
-
-  // 计算总能力
-  const totalSkill = useMemo(() => {
-    return players.reduce((sum, p) => sum + p.skills.overall, 0);
-  }, [players]);
 
   return {
     players,

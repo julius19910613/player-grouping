@@ -1,22 +1,12 @@
 // 类型系统统一导出
-export {
-  // 篮球类型
-  BasketballPosition,
-  BasketballSkills,
-  PositionDetail,
-  POSITION_DETAILS,
-  calculateOverallSkill,
-  createDefaultBasketballSkills,
-  validateSkillValue,
-  getPositionBrief,
-  
-  // 球员和团队类型
-  Player,
-  Team,
-  GroupingStrategy,
-  GroupingConfig,
-  
-  // 已弃用的别名（向后兼容）
-  PlayerPosition,
-  PlayerSkills
-} from './player';
+
+// 从 basketball.ts 导出
+export { BasketballPosition, POSITION_DETAILS } from './basketball';
+export { calculateOverallSkill, createDefaultBasketballSkills } from './basketball';
+export type { BasketballSkills, PositionDetail } from './basketball';
+
+// 从 player.ts 导出
+export type { Player, Team, GroupingStrategy, GroupingConfig } from './player';
+
+// 向后兼容别名
+export type { PlayerPosition, PlayerSkills } from './player';

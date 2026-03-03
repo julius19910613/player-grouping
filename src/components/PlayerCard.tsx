@@ -1,13 +1,7 @@
 import React from 'react';
-import { BasketballPosition, BasketballSkills, POSITION_DETAILS } from '../types/basketball';
+import { POSITION_DETAILS } from '../types/basketball';
+import type { Player } from '../hooks/usePlayerManager';
 import { SkillRadarChart } from './SkillRadarChart';
-
-interface Player {
-  id: string;
-  name: string;
-  position: BasketballPosition;
-  skills: BasketballSkills;
-}
 
 interface PlayerCardProps {
   player: Player;
@@ -34,7 +28,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ player, onEdit, onDelete
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <span style={{ fontSize: '24px' }}>{positionDetails.icon}</span>
-          <span style={{ fontSize: '18px', fontWeight: 'bold' }}>{positionDetails.chineseName}</span>
+          <span style={{ fontSize: '18px', fontWeight: 'bold' }}>{positionDetails.name}</span>
           <span style={{ fontSize: '12px', opacity: 0.8 }}>({positionDetails.englishName})</span>
         </div>
         <h3 style={{ margin: 0, fontSize: '20px' }}>{player.name}</h3>
