@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { POSITION_DETAILS } from '../types/basketball';
 import type { BasketballPosition, BasketballSkills } from '../types/basketball';
 import { SkillRadarChart } from './SkillRadarChart';
@@ -21,13 +22,17 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ player, onEdit, onDelete
   const positionDetails = POSITION_DETAILS[player.position];
 
   return (
-    <div className="player-card" style={{
-      backgroundColor: '#fff',
-      borderRadius: '12px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-      overflow: 'hidden',
-      transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-    }}>
+    <motion.div
+      className="player-card"
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      style={{
+        backgroundColor: '#fff',
+        borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        overflow: 'hidden'
+      }}
+    >
       {/* 头部 - 位置和名称 */}
       <div style={{
         backgroundColor: positionDetails.color,
@@ -117,6 +122,6 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({ player, onEdit, onDelete
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };

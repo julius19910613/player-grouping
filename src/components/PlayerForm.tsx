@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BasketballPosition, createDefaultBasketballSkills, calculateOverallSkill, POSITION_DETAILS } from '../types/basketball';
 import type { BasketballSkills } from '../types/basketball';
 import { PositionSelect } from './PositionSelect';
@@ -95,13 +96,20 @@ export const PlayerForm: React.FC<PlayerFormProps> = ({ onAddPlayer }) => {
   const positionColor = POSITION_DETAILS[position].color;
 
   return (
-    <form className="player-form" onSubmit={handleSubmit} style={{
-      padding: '20px',
-      backgroundColor: '#fff',
-      borderRadius: '12px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-      maxWidth: '400px'
-    }}>
+    <motion.form
+      className="player-form"
+      onSubmit={handleSubmit}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      style={{
+        padding: '20px',
+        backgroundColor: '#fff',
+        borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        maxWidth: '400px'
+      }}
+    >
       <h3 style={{ margin: '0 0 16px 0', color: '#333' }}>🏀 添加球员</h3>
       
       {/* 球员名称 */}
@@ -157,8 +165,15 @@ export const PlayerForm: React.FC<PlayerFormProps> = ({ onAddPlayer }) => {
               <span>{category}</span>
             </div>
             
-            {expandedCategories.has(category) && (
-              <div style={{ padding: '8px 12px', backgroundColor: '#fafafa', borderRadius: '0 0 4px 4px' }}>
+            <AnimatePresence>
+              {expandedCategories.has(category) && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  style={{ padding: '8px 12px', backgroundColor: '#fafafa', borderRadius: '0 0 4px 4px' }}
+                >
                 {skillKeys.map((skillKey) => (
                   <SkillSlider
                     key={skillKey}
@@ -168,8 +183,9 @@ export const PlayerForm: React.FC<PlayerFormProps> = ({ onAddPlayer }) => {
                     color={positionColor}
                   />
                 ))}
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         ))}
 
@@ -189,8 +205,10 @@ export const PlayerForm: React.FC<PlayerFormProps> = ({ onAddPlayer }) => {
       </div>
 
       {/* 提交按钮 */}
-      <button
+      <motion.button
         type="submit"
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
         style={{
           width: '100%',
           padding: '12px',
@@ -200,12 +218,11 @@ export const PlayerForm: React.FC<PlayerFormProps> = ({ onAddPlayer }) => {
           borderRadius: '8px',
           fontSize: '16px',
           fontWeight: 'bold',
-          cursor: 'pointer',
-          transition: 'transform 0.1s ease'
+          cursor: 'pointer'
         }}
       >
         添加球员
-      </button>
-    </form>
+      </motion.button>
+    </motion.form>
   );
 };

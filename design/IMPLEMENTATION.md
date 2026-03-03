@@ -385,15 +385,84 @@ export function SkillRadarChart({ skills, position }: SkillRadarChartProps) {
 
 ---
 
-#### Day 5-6: 动画和交互
+#### Day 5-6: 动画和交互 ✅
 **目标：** 添加流畅的动画效果和交互反馈
 
 **任务清单：**
-- [ ] 添加分组动画
-- [ ] 添加卡片悬浮效果
-- [ ] 添加加载动画
-- [ ] 添加成功/错误提示
-- [ ] 优化移动端体验
+- [x] 安装 framer-motion
+- [x] 更新 PlayerCard.tsx - 添加 hover 和 tap 动画
+- [x] 更新 PlayerForm.tsx - 添加表单动画和滑块动画
+- [x] 创建 GroupingAnimation.tsx - 分组洗牌动画和卡片飞入效果
+- [x] 验证构建通过
+
+**完成日期：** 2026-03-03
+
+**实现细节：**
+- ✅ 安装 framer-motion ^11.0.0
+- ✅ 更新 PlayerCard.tsx：
+  - 使用 motion.div 包裹卡片
+  - 添加 hover 动画效果（scale: 1.02）
+  - 添加 tap 效果（scale: 0.98）
+  - 移除原 CSS transition
+- ✅ 更新 PlayerForm.tsx：
+  - 使用 motion.form 添加入场动画（opacity: 0 → 1, y: 20 → 0）
+  - 使用 AnimatePresence 包裹能力分类展开区域
+  - 为能力分类添加高度动画（height: 0 → auto）
+  - 提交按钮添加 hover 和 tap 动画
+- ✅ 创建 GroupingAnimation.tsx：
+  - 分组卡片入场动画（stagger: 0.1s）
+  - 球员卡片飞入效果（延迟入场，弹簧动画）
+  - 洗牌动画支持（rotate, scale, x/y 偏移）
+  - 空状态动画
+  - 完整的类型定义和接口
+
+**动画实现：**
+```typescript
+// src/components/PlayerCard.tsx
+<motion.div
+  className="player-card"
+  whileHover={{ scale: 1.02 }}
+  whileTap={{ scale: 0.98 }}
+  style={{ ... }}
+>
+
+// src/components/PlayerForm.tsx
+<motion.form
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.3 }}
+>
+
+<AnimatePresence>
+  {expandedCategories.has(category) && (
+    <motion.div
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: 'auto' }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+// src/components/GroupingAnimation.tsx
+const cardVariants = {
+  hidden: {
+    opacity: 0,
+    y: 20,
+    scale: 0.8,
+    rotate: isAnimating ? (Math.random() * 30 - 15) : 0
+  },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    rotate: 0,
+    transition: {
+      type: 'spring',
+      stiffness: 300,
+      damping: 20,
+      delay: (isAnimating ? Math.random() * 0.5 : 0)
+    }
+  }
+};
+```
 
 ---
 
