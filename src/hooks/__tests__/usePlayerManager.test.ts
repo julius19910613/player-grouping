@@ -250,7 +250,7 @@ describe('usePlayerManager', () => {
         expect(result.current.players[0].position).toBe(BasketballPosition.SF)
       })
 
-      it.skip('should not modify other player properties when updating'), async () => {
+      it.skip('should not modify other player properties when updating', async () => {
         const { result } = renderHook(() => usePlayerManager())
 
         const skills: BasketballSkills = {
@@ -308,7 +308,7 @@ describe('usePlayerManager', () => {
         expect(player.skills.passing).toBe(90)
       })
 
-      it.skip('should return error for non-existent player'), async () => {
+      it.skip('should return error for non-existent player', async () => {
         const { result } = renderHook(() => usePlayerManager())
 
         act(() => {
@@ -322,7 +322,7 @@ describe('usePlayerManager', () => {
     })
 
     describe('deletePlayer', () => {
-      it.skip('should delete an existing player'), async () => {
+      it.skip('should delete an existing player', async () => {
         const { result } = renderHook(() => usePlayerManager())
 
         const skills = {
@@ -556,7 +556,7 @@ describe('usePlayerManager', () => {
       expect(result.current.editingPlayer).toBeNull()
     })
 
-    it.skip('should manage error state'), async () => {
+    it.skip('should manage error state', async () => {
       const { result } = renderHook(() => usePlayerManager())
 
       const invalidPlayer = {
@@ -603,7 +603,7 @@ describe('usePlayerManager', () => {
   })
 
   describe('filter operations', () => {
-    it.skip('should filter players by position'), async () => {
+    it.skip('should filter players by position', async () => {
       const { result } = renderHook(() => usePlayerManager())
 
       const skills: BasketballSkills = {
@@ -661,7 +661,7 @@ describe('usePlayerManager', () => {
   })
 
   describe('sorting', () => {
-    it.skip('should sort players by overall skill'), async () => {
+    it.skip('should sort players by overall skill', async () => {
       const { result } = renderHook(() => usePlayerManager())
 
       const weakSkills: BasketballSkills = {

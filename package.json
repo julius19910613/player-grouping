@@ -17,6 +17,7 @@
     "backup": "npx tsx scripts/backup-localstorage.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
     "chart.js": "^4.5.1",
     "framer-motion": "^12.34.4",
     "idb": "^8.0.0",

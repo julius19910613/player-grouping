@@ -119,6 +119,35 @@ CREATE TABLE grouping_history (
 npm install
 ```
 
+### 配置 Supabase（可选）
+
+如果需要云端数据同步功能，请按以下步骤配置 Supabase：
+
+1. **创建 Supabase 项目**
+   - 访问 [Supabase](https://supabase.com/)
+   - 创建新项目并记录项目 URL 和 anon key
+
+2. **创建数据库表**
+   - 在 Supabase SQL 编辑器中执行 `supabase/schema.sql`
+   - 然后执行 `supabase/rls.sql` 启用行级安全策略
+
+3. **配置环境变量**
+   ```bash
+   # 复制环境变量模板
+   cp .env.example .env.local
+
+   # 编辑 .env.local，填入你的 Supabase 配置
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your-anon-key
+   ```
+
+4. **重启开发服务器**
+   ```bash
+   npm run dev
+   ```
+
+**注意：** 不配置 Supabase 也可以正常使用，应用会自动使用 SQLite 本地存储。
+
 ### 启动开发服务器
 
 ```bash
@@ -237,6 +266,10 @@ player-grouping/
 - **删除球员**：点击球员卡片上的删除按钮
 - **数据备份**：所有数据自动保存在 SQLite 数据库中，并持久化到 IndexedDB
 - **自动迁移**：首次启动时自动从 LocalStorage 迁移旧数据到 SQLite
+- **云端同步**：配置 Supabase 后，支持多设备数据同步
+  - 自动处理离线场景
+  - 网络恢复后自动同步待同步数据
+  - 支持冲突检测和自动解决
 
 ### 数据迁移
 
@@ -418,6 +451,12 @@ src/
 - [x] SQLite 数据库迁移（已完成）
 - [x] 分组历史记录功能（已完成）
 - [x] 数据备份和恢复（已完成）
+- [ ] Supabase 云端同步（Phase 1 已完成：数据库表结构、RLS 策略、环境配置）
+  - [x] 创建 Supabase 表结构和 RLS 策略
+  - [ ] 实现 Repository 改造（SupabaseRepository、HybridRepository）
+  - [ ] 实现匿名认证流程
+  - [ ] 实现数据迁移工具（SQLite → Supabase）
+  - [ ] 实现离线支持和同步队列
 - [ ] 支持导入/导出球员数据（SQLite 文件）
 - [ ] 添加更多分组算法
 - [ ] 支持历史记录查看和管理界面
@@ -425,7 +464,7 @@ src/
 - [ ] 支持团队战术设置
 - [ ] 添加多语言支持
 - [ ] 移动端 APP 开发
-- [ ] 在线数据同步
+- [ ] 实时多设备同步
 
 ## 📄 许可证
 
