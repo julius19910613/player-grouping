@@ -27,12 +27,9 @@ export class SupabasePlayerRepository {
     try {
       // 获取当前用户 ID
       const userId = await getCurrentUserId();
-      if (!userId) {
-        console.warn('⚠️ 未认证用户，无法查询球员');
-        return [];
-      }
 
-      const { data, error } = await supabase!
+      // 构建查询
+      let query = supabase!
         .from('players')
         .select(`
           id,
@@ -63,12 +60,20 @@ export class SupabasePlayerRepository {
             overall,
             updated_at
           )
-        `)
-        .eq('user_id', userId)  // 🔒 仅查询当前用户的球员
-        .order('created_at', { ascending: false });
+        `);
+
+      // 根据用户 ID 过滤
+      if (userId) {
+        query = query.eq('user_id', userId);  // 查询当前用户的球员
+      } else {
+        query = query.is('user_id', null);  // 游客模式：查询公共球员
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
 
+      console.log(`✅ Supabase 查询成功: ${data?.length || 0} 名球员`);
       return data.map(row => this.mapRowToPlayer(row));
     } catch (error) {
       console.error('❌ Supabase 查询所有球员失败:', error);
