@@ -4,7 +4,7 @@
  */
 
 import { createPlayerRepository } from '../repositories';
-import type { Player, BasketballPosition, BasketballSkills } from '../types';
+import type { Player as _Player, BasketballPosition, BasketballSkills } from '../types';
 
 // 原始数据
 const rawData = [

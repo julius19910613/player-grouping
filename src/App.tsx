@@ -8,6 +8,7 @@ import {
 } from './types';
 import { GroupingAlgorithm } from './utils/groupingAlgorithm';
 import { Storage } from './utils/storage';
+import { playerRepository } from './repositories';
 import './App.css';
 
 function App() {
@@ -15,27 +16,36 @@ function App() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamCount, setTeamCount] = useState(2);
   const [showGrouping, setShowGrouping] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // 表单状态
   const [playerName, setPlayerName] = useState('');
   const [playerPosition, setPlayerPosition] = useState<BasketballPosition>(BasketballPosition.PG);
   const [skills, setSkills] = useState(createDefaultBasketballSkills());
 
-  // 加载本地存储的球员数据
+  // 加载球员数据（从 Supabase）
   useEffect(() => {
-    const savedPlayers = Storage.loadPlayers();
-    setPlayers(savedPlayers);
+    loadPlayers();
   }, []);
 
-  // 保存球员数据到本地存储
-  useEffect(() => {
-    if (players.length > 0) {
-      Storage.savePlayers(players);
+  const loadPlayers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await playerRepository.findAll();
+      setPlayers(data);
+      console.log(`✅ 加载了 ${data.length} 名球员`);
+    } catch (err) {
+      console.error('❌ 加载球员失败:', err);
+      setError('加载球员数据失败，请刷新页面重试');
+    } finally {
+      setLoading(false);
     }
-  }, [players]);
+  };
 
   // 添加球员
-  const handleAddPlayer = (e: React.FormEvent) => {
+  const handleAddPlayer = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!playerName.trim()) {
@@ -43,21 +53,24 @@ function App() {
       return;
     }
 
-    // 计算总体能力
-    const overall = calculateOverallSkill(skills, playerPosition);
-    const playerSkills = { ...skills, overall };
+    try {
+      // 计算总体能力
+      const overall = calculateOverallSkill(skills, playerPosition);
+      const playerSkills = { ...skills, overall };
 
-    const newPlayer: Player = {
-      id: `player-${Date.now()}`,
-      name: playerName,
-      position: playerPosition,
-      skills: playerSkills,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      const newPlayer = await playerRepository.create({
+        name: playerName,
+        position: playerPosition,
+        skills: playerSkills,
+      });
 
-    setPlayers([...players, newPlayer]);
-    resetForm();
+      setPlayers([...players, newPlayer]);
+      resetForm();
+      console.log(`✅ 添加球员成功: ${newPlayer.name}`);
+    } catch (err) {
+      console.error('❌ 添加球员失败:', err);
+      alert('添加球员失败，请重试');
+    }
   };
 
   // 重置表单
@@ -68,9 +81,16 @@ function App() {
   };
 
   // 删除球员
-  const handleDeletePlayer = (id: string) => {
-    if (confirm('确定要删除这名球员吗？')) {
+  const handleDeletePlayer = async (id: string) => {
+    if (!confirm('确定要删除这名球员吗？')) return;
+
+    try {
+      await playerRepository.delete(id);
       setPlayers(players.filter((p) => p.id !== id));
+      console.log(`✅ 删除球员成功`);
+    } catch (err) {
+      console.error('❌ 删除球员失败:', err);
+      alert('删除球员失败，请重试');
     }
   };
 
@@ -156,6 +176,21 @@ function App() {
       </header>
 
       <main className="main">
+        {/* 加载状态 */}
+        {loading && (
+          <div className="loading">
+            <p>⏳ 加载球员数据中...</p>
+          </div>
+        )}
+
+        {/* 错误提示 */}
+        {error && (
+          <div className="error">
+            <p>❌ {error}</p>
+            <button onClick={loadPlayers}>重试</button>
+          </div>
+        )}
+
         {/* 添加球员表单 */}
         <section className="section">
           <h2>添加球员</h2>
@@ -228,8 +263,11 @@ function App() {
               导入数据
               <input type="file" accept=".json" onChange={handleImport} hidden />
             </label>
+            <button onClick={loadPlayers} className="btn">
+              刷新数据
+            </button>
           </div>
-          {players.length === 0 ? (
+          {!loading && players.length === 0 ? (
             <p className="empty-message">暂无球员，请先添加球员</p>
           ) : (
             <div className="player-list">
