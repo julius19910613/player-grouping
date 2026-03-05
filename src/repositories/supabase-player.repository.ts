@@ -32,7 +32,7 @@ export class SupabasePlayerRepository {
         return [];
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('players')
         .select(`
           id,
@@ -85,7 +85,7 @@ export class SupabasePlayerRepository {
    */
   async findById(id: string): Promise<Player | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('players')
         .select(`
           id,
@@ -155,7 +155,7 @@ export class SupabasePlayerRepository {
       }
 
       // 1. 插入 player
-      const { data: player, error: playerError } = await supabase
+      const { data: player, error: playerError } = await supabase!
         .from('players')
         .insert({
           user_id: userId,  // 🔒 关联当前用户
@@ -167,13 +167,13 @@ export class SupabasePlayerRepository {
 
       if (playerError) throw playerError;
 
-      // 2. 插入 skills（Supabase 会自动计算 overall，但我们也在前端计算以保持一致）
+      // 2. 插入 skills（Supabase 会自动计算 overall，但我们也在前端计算以验证）
       const overall = calculateOverallSkill(
         playerData.skills as Omit<BasketballSkills, 'overall'>,
         playerData.position
       );
 
-      const { error: skillsError } = await supabase
+      const { error: skillsError } = await supabase!
         .from('player_skills')
         .insert({
           player_id: player.id,
@@ -229,7 +229,7 @@ export class SupabasePlayerRepository {
     try {
       // 1. 更新基本信息
       if (updates.name || updates.position) {
-        const { error: playerError } = await supabase
+        const { error: playerError } = await supabase!
           .from('players')
           .update({
             ...(updates.name && { name: updates.name }),
@@ -242,16 +242,8 @@ export class SupabasePlayerRepository {
 
       // 2. 更新能力值
       if (updates.skills) {
-        // 如果更新了位置，需要重新计算 overall
-        let overall = updates.skills.overall;
-        if (updates.position) {
-          overall = calculateOverallSkill(
-            updates.skills as Omit<BasketballSkills, 'overall'>,
-            updates.position
-          );
-        }
-
-        const { error: skillsError } = await supabase
+        // 注意：overall 由 Supabase 触发器自动计算
+        const { error: skillsError } = await supabase!
           .from('player_skills')
           .update({
             two_point_shot: updates.skills.twoPointShot,
@@ -297,7 +289,7 @@ export class SupabasePlayerRepository {
    */
   async delete(id: string): Promise<void> {
     try {
-      const { error } = await supabase
+      const { error } = await supabase!
         .from('players')
         .delete()
         .eq('id', id);
@@ -320,7 +312,7 @@ export class SupabasePlayerRepository {
    */
   async findByPosition(position: BasketballPosition): Promise<Player[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('players')
         .select(`
           id,
@@ -373,7 +365,7 @@ export class SupabasePlayerRepository {
    */
   async searchByName(name: string): Promise<Player[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('players')
         .select(`
           id,
@@ -433,7 +425,7 @@ export class SupabasePlayerRepository {
         return 0;
       }
 
-      const { count, error } = await supabase
+      const { count, error } = await supabase!
         .from('players')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);  // 🔒 仅统计当前用户的球员

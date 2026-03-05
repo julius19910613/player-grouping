@@ -5,7 +5,7 @@
  * 演示如何在应用中集成离线支持功能
  */
 
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import { useNetworkStatus } from '../lib/network-status';
 import { useAppInit } from '../lib/app-init';
 import { createPlayerRepository } from '../repositories';

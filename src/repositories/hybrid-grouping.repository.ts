@@ -11,7 +11,7 @@
 
 import { SupabaseGroupingRepository } from './supabase-grouping.repository';
 import { GroupingRepository, type GroupingHistory, type CreateGroupingHistoryInput } from './grouping.repository';
-import { DatabaseError } from '../types/database';
+
 import type { GroupingMode } from '../types/database';
 
 /**
@@ -216,7 +216,7 @@ export class HybridGroupingRepository {
   /**
    * 更新本地缓存
    */
-  private async updateLocalCache(history: GroupingHistory[]): Promise<void> {
+  private async updateLocalCache(_history: GroupingHistory[]): Promise<void> {
     try {
       // 注意：分组历史是 append-only，不需要复杂的冲突检测
       // 这里简化处理，仅在读取时更新缓存

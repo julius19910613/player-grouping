@@ -6,6 +6,7 @@
  */
 
 import { getOrCreateAnonymousUser, getCurrentUserId, onAuthStateChange } from '../lib/auth';
+import type { User } from '@supabase/supabase-js';
 
 /**
  * 示例 1: 应用启动时初始化认证
@@ -39,9 +40,9 @@ export async function initApp() {
  * 示例 2: 在 React 组件中使用认证
  */
 export function useAuth() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     async function initAuth() {
@@ -73,7 +74,7 @@ export function useAuth() {
 /**
  * 示例 3: 在 Repository 操作前检查认证
  */
-export async function createPlayerExample(playerData: any) {
+export async function createPlayerExample(_playerData: any) {
   // 1. 获取当前用户 ID
   const userId = await getCurrentUserId();
 

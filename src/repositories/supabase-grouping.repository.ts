@@ -34,7 +34,7 @@ export class SupabaseGroupingRepository {
         );
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('grouping_history')
         .insert({
           user_id: userId,  // 🔒 关联当前用户
@@ -77,7 +77,7 @@ export class SupabaseGroupingRepository {
         return [];
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('grouping_history')
         .select('*')
         .eq('user_id', userId)  // 🔒 仅查询当前用户的历史
@@ -102,7 +102,7 @@ export class SupabaseGroupingRepository {
    */
   async getById(id: number): Promise<GroupingHistory | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('grouping_history')
         .select('*')
         .eq('id', id)
@@ -132,7 +132,7 @@ export class SupabaseGroupingRepository {
    */
   async delete(id: number): Promise<void> {
     try {
-      const { error } = await supabase
+      const { error } = await supabase!
         .from('grouping_history')
         .delete()
         .eq('id', id);
@@ -155,7 +155,7 @@ export class SupabaseGroupingRepository {
    */
   async clearAll(): Promise<void> {
     try {
-      const { error } = await supabase
+      const { error } = await supabase!
         .from('grouping_history')
         .delete()
         .neq('id', 0);  // 删除所有记录（Supabase 需要一个过滤器）
@@ -178,7 +178,7 @@ export class SupabaseGroupingRepository {
    */
   async getByMode(mode: GroupingMode, limit: number = 20): Promise<GroupingHistory[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('grouping_history')
         .select('*')
         .eq('mode', mode)
@@ -210,7 +210,7 @@ export class SupabaseGroupingRepository {
         return 0;
       }
 
-      const { count, error } = await supabase
+      const { count, error } = await supabase!
         .from('grouping_history')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);  // 🔒 仅统计当前用户的历史
@@ -233,7 +233,7 @@ export class SupabaseGroupingRepository {
    */
   async updateNote(id: number, note: string): Promise<void> {
     try {
-      const { error } = await supabase
+      const { error } = await supabase!
         .from('grouping_history')
         .update({ note })
         .eq('id', id);
@@ -286,7 +286,7 @@ export class SupabaseGroupingRepository {
       }
 
       // 2. 模式分布
-      const { data: modeData, error: modeError } = await supabase
+      const { data: modeData, error: modeError } = await supabase!
         .from('grouping_history')
         .select('mode')
         .eq('user_id', userId);  // 🔒 仅统计当前用户
@@ -300,7 +300,7 @@ export class SupabaseGroupingRepository {
       });
 
       // 3. 平均平衡分
-      const { data: balanceData, error: balanceError } = await supabase
+      const { data: balanceData, error: balanceError } = await supabase!
         .from('grouping_history')
         .select('balance_score')
         .eq('user_id', userId)  // 🔒 仅统计当前用户
@@ -313,7 +313,7 @@ export class SupabaseGroupingRepository {
         : null;
 
       // 4. 平均球员数
-      const { data: playerCountData, error: playerCountError } = await supabase
+      const { data: playerCountData, error: playerCountError } = await supabase!
         .from('grouping_history')
         .select('player_count')
         .eq('user_id', userId);  // 🔒 仅统计当前用户

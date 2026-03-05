@@ -6,8 +6,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { quickMigrate, quickRollback, getMigrationStatus } from '@/migration';
-import type { MigrationResult } from '@/migration';
+import { quickMigrate, quickRollback, getMigrationStatus } from '../migration';
+import type { MigrationResult } from '../migration';
 
 /**
  * 示例 1：简单迁移按钮

@@ -9,7 +9,7 @@
  * - 参考 .env.example 获取配置示例
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 // Supabase 配置（从环境变量读取）
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -24,7 +24,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
 }
 
 // 创建 Supabase 客户端实例（如果配置可用）
-export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
+const _supabase = SUPABASE_URL && SUPABASE_ANON_KEY
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         // 游客模式配置
@@ -34,6 +34,9 @@ export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
       },
     })
   : null;
+
+// 导出为非空类型（调用者需确保 isSupabaseAvailable() 返回 true）
+export const supabase = _supabase as SupabaseClient;
 
 // 导出配置供其他模块使用
 export const supabaseConfig = {

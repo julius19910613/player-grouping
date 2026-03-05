@@ -9,10 +9,10 @@
  * - 错误详情展示
  */
 
-import React, { useState, useEffect } from 'react';
+import  { useState, useEffect } from 'react';
 import { migrationManager, type MigrationResult } from '../migration/migrate-to-supabase';
 import { rollbackManager, type RollbackResult } from '../migration/rollback';
-import { migrationProgress, type MigrationProgress, type MigrationType } from '../migration/migration-progress';
+import { migrationProgress, type MigrationProgress } from '../migration/migration-progress';
 import { databaseService } from '../services/database';
 import { PlayerRepository } from '../repositories/player.repository';
 import { GroupingRepository } from '../repositories/grouping.repository';

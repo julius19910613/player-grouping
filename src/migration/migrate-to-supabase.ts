@@ -17,7 +17,7 @@ import { SupabasePlayerRepository } from '../repositories/supabase-player.reposi
 import { SupabaseGroupingRepository } from '../repositories/supabase-grouping.repository';
 import { migrationProgress, type MigrationType } from './migration-progress';
 import { rollbackManager } from './rollback';
-import { getOrCreateAnonymousUser, getCurrentUserId } from '../lib/auth';
+import { getOrCreateAnonymousUser } from '../lib/auth';
 import { databaseService } from '../services/database';
 import { DatabaseError } from '../types/database';
 import type { Player } from '../types/player';

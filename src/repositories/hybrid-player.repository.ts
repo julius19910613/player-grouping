@@ -14,7 +14,7 @@ import { SupabasePlayerRepository } from './supabase-player.repository';
 import { PlayerRepository } from './player.repository';
 import type { Player } from '../types/player';
 import { BasketballPosition } from '../types/basketball';
-import { DatabaseError } from '../types/database';
+
 
 /**
  * 同步冲突解决策略
@@ -122,7 +122,7 @@ export class HybridPlayerRepository {
         id: player.id,
         createdAt: player.createdAt,
         updatedAt: player.updatedAt,
-      });
+      } as any);
 
       return player;
     } catch (error) {
@@ -360,7 +360,7 @@ export class HybridPlayerRepository {
    */
   private mergeData(
     serverData: Player,
-    localData: Player,
+    _localData: Player,
     pendingData: any
   ): Partial<Player> {
     // 简化版：使用本地修改的字段，其他字段使用服务端数据

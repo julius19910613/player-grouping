@@ -14,7 +14,7 @@ import { getCurrentUserId } from '../lib/auth';
 import { migrationProgress, type MigrationType } from './migration-progress';
 import { databaseService } from '../services/database';
 import { openDB } from 'idb';
-import type { IDBPDatabase } from 'idb';
+import type { IDBPDatabase as _IDBPDatabase } from 'idb';
 import { DatabaseError } from '../types/database';
 
 /**
@@ -43,7 +43,6 @@ interface BackupInfo {
  */
 class RollbackManager {
   private readonly DB_NAME = 'player-grouping-db';
-  private readonly STORE_NAME = 'sqlite-data';
   private readonly BACKUP_STORE = 'backups';
   
   /**

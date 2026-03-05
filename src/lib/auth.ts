@@ -25,13 +25,14 @@ export interface AuthResult {
  * 认证错误类
  */
 export class AuthError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public recoverable: boolean
-  ) {
+  code: string;
+  recoverable: boolean;
+
+  constructor(message: string, code: string, recoverable: boolean) {
     super(message);
     this.name = 'AuthError';
+    this.code = code;
+    this.recoverable = recoverable;
   }
 }
 
@@ -62,7 +63,7 @@ export async function getOrCreateAnonymousUser(): Promise<AuthResult> {
   if (storedUserId && storedSession) {
     try {
       // 尝试恢复会话
-      const { data: { session }, error } = await supabase!.auth.getSession();
+      const { data: { session }, error: _error } = await supabase!.auth.getSession();
 
       if (session?.user && session.user.id === storedUserId) {
         console.log('✅ 认证成功：恢复已有会话', session.user.id);

@@ -3,7 +3,7 @@
  * 用于验证 Repository 是否正常工作
  */
 
-import { createPlayerRepository, createGroupingRepository, setRepositoryConfig } from '../repositories';
+import { createPlayerRepository, createGroupingRepository, setRepositoryConfig } from '../index';
 
 // 测试切换配置
 console.log('=== 测试 Repository 工厂 ===');
