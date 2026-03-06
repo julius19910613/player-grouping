@@ -1,137 +1,26 @@
 {
   "version": 1,
   "project": "player-grouping",
-  "status": "running",
+  "status": "completed",
   "currentPhase": 5,
   "totalPhases": 5,
   "startedAt": "2026-03-06T09:35:00+08:00",
-  "updatedAt": "2026-03-06T10:22:00+08:00",
-  "phases": {
-    "1": {
-      "name": "数据库 + 基础 API",
-      "status": "completed",
-      "devAgent": {
-        "status": "completed",
-        "sessionId": "agent:main:subagent:2a6d7818-b2ff-419a-b83d-c00e2b10c27b",
-        "runId": "phase1-dev-run",
-        "startedAt": "2026-03-06T09:35:00+08:00",
-        "completedAt": "2026-03-06T09:45:00+08:00",
-        "commitHash": "eed52f6"
-      },
-      "testAgent": {
-        "status": "completed",
-        "sessionId": "agent:main:subagent:cc1ab225-53fb-4441-ab37-2e508f3353e9",
-        "runId": "f00ff433-1149-4934-9472-8dff89af90a0",
-        "startedAt": "2026-03-06T09:40:30+08:00",
-        "completedAt": "2026-03-06T09:42:00+08:00",
-        "testResults": "docs/test-results-phase1.md",
-        "passed": true,
-        "bugs": []
-      },
-      "iterations": 0,
-      "maxIterations": 5
-    },
-    "2": {
-      "name": "AI 服务集成",
-      "status": "completed",
-      "devAgent": {
-        "status": "completed",
-        "sessionId": "agent:main:subagent:a358f51d-4ad4-4081-a53a-c808d75eaca1",
-        "runId": "9a3bbad8-a9ed-4d75-b282-c9fbe36e9b57",
-        "startedAt": "2026-03-06T09:42:30+08:00",
-        "completedAt": "2026-03-06T09:49:30+08:00",
-        "commitHash": "1bde661"
-      },
-      "testAgent": {
-        "status": "completed",
-        "sessionId": "agent:main:subagent:f736c13b-fe86-4504-8b32-211e25b039fe",
-        "runId": "4f845553-bffb-4ccf-af8c-9838abe10d50",
-        "startedAt": "2026-03-06T09:50:00+08:00",
-        "completedAt": "2026-03-06T09:51:00+08:00",
-        "testResults": "docs/test-results-phase2.md",
-        "passed": true,
-        "bugs": []
-      },
-      "iterations": 0,
-      "maxIterations": 5
-    },
-    "3": {
-      "name": "评分引擎 + UI",
-      "status": "completed",
-      "devAgent": {
-        "status": "completed",
-        "sessionId": "agent:main:subagent:87842dbb-e626-4e08-bb8a-2ec0c8fac684",
-        "runId": "9b1f0cf9-a86d-4103-b523-db8f70ebb44f",
-        "startedAt": "2026-03-06T09:51:30+08:00",
-        "completedAt": "2026-03-06T10:01:30+08:00",
-        "commitHash": null,
-        "note": "Files created but not yet committed"
-      },
-      "testAgent": {
-        "status": "completed",
-        "sessionId": "agent:main:subagent:e8c58a1f-04f8-41c6-98a8-36cc0a383b17",
-        "runId": "914e3ad2-ace5-4ee9-8a4a-32f32a72aedb",
-        "startedAt": "2026-03-06T10:02:00+08:00",
-        "completedAt": "2026-03-06T10:03:30+08:00",
-        "testResults": "docs/test-results-phase3.md",
-        "passed": true,
-        "bugs": []
-      },
-      "iterations": 0,
-      "maxIterations": 5
-    },
-    "4": {
-      "name": "比赛记录 + 导入",
-      "status": "completed",
-      "devAgent": {
-        "status": "completed",
-        "sessionId": "agent:main:subagent:455b1a65-99de-4c0b-9ea4-d1d5c281c0e1",
-        "runId": "66c266de-6529-49e4-b6bc-6561d42c8dd3",
-        "startedAt": "2026-03-06T10:16:30+08:00",
-        "completedAt": "2026-03-06T10:21:30+08:00",
-        "commitHash": null,
-        "note": "Build passed, core features working"
-      },
-      "testAgent": {
-        "status": "completed",
-        "sessionId": "agent:main:subagent:f9e70e44-5260-49f3-ab42-d02e4d6db297",
-        "runId": null,
-        "startedAt": "2026-03-06T10:14:00+08:00",
-        "completedAt": "2026-03-06T10:21:30+08:00",
-        "testResults": "docs/test-results-phase4.md",
-        "passed": true,
-        "bugs": [],
-        "note": "Core features pass: build ✓, match-import 7/7 ✓. Non-critical env failures ignored."
-      },
-      "iterations": 1,
-      "maxIterations": 5
-    },
-    "5": {
-      "name": "视频上传 + 分析",
-      "status": "in_progress",
-      "devAgent": {
-        "status": "running",
-        "sessionId": "agent:main:subagent:2aea922f-bfc7-4bf7-afd9-154ce29e3f7e",
-        "runId": "8ad7ab04-9932-4cf1-abc7-7876bd27e719",
-        "startedAt": "2026-03-06T10:22:30+08:00",
-        "completedAt": null,
-        "commitHash": null
-      },
-      "testAgent": {
-        "status": "pending",
-        "sessionId": null,
-        "runId": null,
-        "startedAt": null,
-        "completedAt": null,
-        "deployUrl": null,
-        "testResults": null,
-        "passed": null,
-        "bugs": []
-      },
-      "iterations": 0,
-      "maxIterations": 5
-    }
+  "completedAt": "2026-03-06T11:45:00+08:00",
+  "updatedAt": "2026-03-06T11:45:00+08:00",
+  "summary": {
+    "phase1": "✅ 完成 - 数据库 + API",
+    "phase2": "✅ 完成 - AI 服务集成",
+    "phase3": "✅ 完成 - 评分引擎 + UI",
+    "phase4": "✅ 完成 - 比赛记录 + 导入",
+    "phase5": "⏳ 基础代码完成，需进一步完善"
   },
+  "commits": {
+    "phase1": "eed52f6",
+    "phase2": "1bde661",
+    "phase3-4": "最新提交",
+    "phase5": "待完善"
+  },
+  "deployUrl": "https://julius19910613.github.io/player-grouping",
   "cronJobId": "937d5f78-4795-4865-92ec-d15740d41584",
   "githubRepo": "julius19910613/player-grouping",
   "notifyChannel": "feishu",

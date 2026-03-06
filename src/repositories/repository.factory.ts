@@ -30,11 +30,11 @@ export interface RepositoryConfig {
 }
 
 /**
- * 默认配置（优先使用 Hybrid，如果 Supabase 不可用则降级到 SQLite）
+ * 默认配置（使用 Supabase）
  */
 const DEFAULT_CONFIG: RepositoryConfig = {
-  player: 'hybrid',
-  grouping: 'hybrid',
+  player: 'supabase',
+  grouping: 'supabase',
 };
 
 /**
@@ -49,38 +49,24 @@ let playerRepositoryInstance: PlayerRepository | SupabasePlayerRepository | Hybr
 let groupingRepositoryInstance: GroupingRepository | SupabaseGroupingRepository | HybridGroupingRepository | null = null;
 
 /**
- * 创建球员 Repository
+ * 创建球员 Repository（强制使用 Supabase）
  */
 export function createPlayerRepository(
-  source?: DataSource
-): PlayerRepository | SupabasePlayerRepository | HybridPlayerRepository {
-  const dataSource = source || currentConfig.player;
-
-  // 如果 Supabase 未配置，强制降级到 SQLite
-  const effectiveSource = shouldUseSupabase() ? dataSource : 'sqlite';
+  _source?: DataSource
+): SupabasePlayerRepository {
+  // 强制使用 Supabase
+  const effectiveSource: DataSource = 'supabase';
 
   // 如果已存在实例且数据源相同，直接返回
   if (playerRepositoryInstance && getSourceFromInstance(playerRepositoryInstance) === effectiveSource) {
-    return playerRepositoryInstance;
+    return playerRepositoryInstance as SupabasePlayerRepository;
   }
 
   // 创建新实例
-  switch (effectiveSource) {
-    case 'sqlite':
-      playerRepositoryInstance = new PlayerRepository();
-      break;
-    case 'supabase':
-      playerRepositoryInstance = new SupabasePlayerRepository();
-      break;
-    case 'hybrid':
-      playerRepositoryInstance = new HybridPlayerRepository();
-      break;
-    default:
-      throw new Error(`Unknown data source: ${effectiveSource}`);
-  }
+  playerRepositoryInstance = new SupabasePlayerRepository();
 
   console.log(`✅ 球员 Repository 已创建: ${effectiveSource}`);
-  return playerRepositoryInstance;
+  return playerRepositoryInstance as SupabasePlayerRepository;
 }
 
 /**
