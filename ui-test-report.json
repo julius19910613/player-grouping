@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-03-06T07:16:52.116Z",
+  "dom_validation": {
+    "header": true,
+    "player_form": true,
+    "player_list": true,
+    "player_cards_count": 19,
+    "grouping_button": true
+  },
+  "player_data": {
+    "loaded": true,
+    "first_player_name": "Dao小帅⚡ 小前锋✕总体能力60投篮68组织65防守62篮板63身体素质67",
+    "sample_data": [
+      "Dao小帅⚡ 小前锋✕总体能力60投篮68组织65防守62篮板63身体素质67",
+      "黑老王⚡ 小前锋✕总体能力56投篮63组织62防守59篮板59身体素质63",
+      "党企代表要生三胎⚡ 小前锋✕总体能力58投篮65组织64防守61篮板61身体素质65",
+      "正义皓💪 大前锋✕总体能力63投篮67组织66防守68篮板73身体素质71",
+      "钩子🐔🏔️ 中锋✕总体能力69投篮69组织68防守69篮板85身体素质78"
+    ]
+  },
+  "screenshot": "ui-verification.png",
+  "console_errors": 0,
+  "console_error_details": [],
+  "all_tests_passed": true,
+  "errors": []
+}

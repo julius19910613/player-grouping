@@ -184,7 +184,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-500 to-purple-600">
+    <div className="min-h-screen bg-gradient-to-br from-primary to-accent">
       {/* Header */}
       <header 
         className="bg-white/95 backdrop-blur-sm shadow-md py-8 px-4 text-center"
@@ -222,7 +222,7 @@ function App() {
         {/* 添加球员表单 */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-xl text-slate-800 border-b-2 border-violet-500 pb-2">
+            <CardTitle className="text-xl text-slate-800 border-b-2 border-primary pb-2">
               添加球员
             </CardTitle>
           </CardHeader>
@@ -271,7 +271,7 @@ function App() {
                         <div key={skillKey} className="space-y-1">
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-600">{skillNames[skillKey]}</span>
-                            <span className="font-semibold text-violet-600">
+                            <span className="font-semibold text-primary">
                               {skills[skillKey as keyof typeof skills]}
                             </span>
                           </div>
@@ -303,7 +303,7 @@ function App() {
         <Card className="mb-6">
           <CardHeader>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle className="text-xl text-slate-800 border-b-2 border-violet-500 pb-2">
+              <CardTitle className="text-xl text-slate-800 border-b-2 border-primary pb-2">
                 球员列表 ({players.length})
               </CardTitle>
               <div className="flex flex-wrap gap-2">
@@ -362,7 +362,7 @@ function App() {
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-slate-500">总体能力</span>
-                          <strong className="text-violet-600">{player.skills.overall}</strong>
+                          <strong className="text-primary">{player.skills.overall}</strong>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-500">投篮</span>
@@ -397,7 +397,7 @@ function App() {
         {players.length > 0 && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-xl text-slate-800 border-b-2 border-violet-500 pb-2">
+              <CardTitle className="text-xl text-slate-800 border-b-2 border-primary pb-2">
                 分组设置
               </CardTitle>
             </CardHeader>
@@ -435,7 +435,7 @@ function App() {
         {showGrouping && teams.length > 0 && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-xl text-slate-800 border-b-2 border-violet-500 pb-2">
+              <CardTitle className="text-xl text-slate-800 border-b-2 border-primary pb-2">
                 分组结果
               </CardTitle>
             </CardHeader>
@@ -444,7 +444,7 @@ function App() {
                 {teams.map((team) => (
                   <Card 
                     key={team.id}
-                    className="bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg"
+                    className="bg-gradient-to-br from-primary to-accent text-white shadow-lg"
                   >
                     <CardContent className="p-4">
                       <div className="flex justify-between items-center mb-4 pb-2 border-b border-white/30">
@@ -478,7 +478,7 @@ function App() {
               </div>
               <div className="text-center bg-slate-100 rounded-lg p-4">
                 <p className="text-slate-600 text-lg">
-                  平衡度: <strong className="text-violet-600">{GroupingAlgorithm.calculateBalance(teams).toFixed(2)}</strong>
+                  平衡度: <strong className="text-primary">{GroupingAlgorithm.calculateBalance(teams).toFixed(2)}</strong>
                   <span className="text-sm text-slate-500 ml-2">(越小越平衡)</span>
                 </p>
               </div>
