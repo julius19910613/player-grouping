@@ -66,7 +66,9 @@ export class SupabasePlayerRepository {
       if (userId) {
         query = query.eq('user_id', userId);  // 查询当前用户的球员
       } else {
-        query = query.is('user_id', null);  // 游客模式：查询公共球员
+        // 游客模式：返回空数组（未认证用户无权查询数据）
+        console.warn('⚠️ 未认证用户，返回空数组');
+        return [];
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
