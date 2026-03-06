@@ -17,6 +17,10 @@ export { SupabasePlayerRepository } from './supabase-player.repository';
 export { SupabaseGroupingRepository } from './supabase-grouping.repository';
 export { HybridPlayerRepository } from './hybrid-player.repository';
 export { HybridGroupingRepository } from './hybrid-grouping.repository';
+export { MatchRepository } from './match.repository';
+export { PlayerMatchStatsRepository } from './player-match-stats.repository';
+export { SkillAdjustmentRepository } from './skill-adjustment.repository';
+export { PlayerVideoRepository } from './player-video.repository';
 
 // 导出工厂函数和配置
 export {

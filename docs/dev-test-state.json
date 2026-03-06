@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "project": "player-grouping",
+  "status": "running",
+  "currentPhase": 2,
+  "totalPhases": 5,
+  "startedAt": "2026-03-06T09:35:00+08:00",
+  "updatedAt": "2026-03-06T09:42:00+08:00",
+  "phases": {
+    "1": {
+      "name": "数据库 + 基础 API",
+      "status": "completed",
+      "devAgent": {
+        "status": "completed",
+        "sessionId": "agent:main:subagent:7ffddfa5-d8d4-46f3-b93f-24dcb06a5bb8",
+        "runId": "3b23e200-3807-4778-b5b6-c96155a951bc",
+        "startedAt": "2026-03-06T09:36:30+08:00",
+        "completedAt": "2026-03-06T09:40:00+08:00",
+        "commitHash": "0a9a568"
+      },
+      "testAgent": {
+        "status": "completed",
+        "sessionId": "agent:main:subagent:cc1ab225-53fb-4441-ab37-2e508f3353e9",
+        "runId": "f00ff433-1149-4934-9472-8dff89af90a0",
+        "startedAt": "2026-03-06T09:40:30+08:00",
+        "completedAt": "2026-03-06T09:42:00+08:00",
+        "testResults": "docs/test-results-phase1.md",
+        "passed": true,
+        "bugs": []
+      },
+      "iterations": 0,
+      "maxIterations": 5
+    },
+    "2": {
+      "name": "AI 服务集成",
+      "status": "in_progress",
+      "devAgent": {
+        "status": "pending",
+        "sessionId": null,
+        "runId": null,
+        "startedAt": null,
+        "completedAt": null,
+        "commitHash": null
+      },
+      "testAgent": {
+        "status": "pending",
+        "sessionId": null,
+        "runId": null,
+        "startedAt": null,
+        "completedAt": null,
+        "deployUrl": null,
+        "testResults": null,
+        "passed": null,
+        "bugs": []
+      },
+      "iterations": 0,
+      "maxIterations": 5
+    },
+    "3": {
+      "name": "评分引擎 + UI",
+      "status": "pending",
+      "devAgent": {
+        "status": "pending",
+        "sessionId": null,
+        "runId": null,
+        "startedAt": null,
+        "completedAt": null,
+        "commitHash": null
+      },
+      "testAgent": {
+        "status": "pending",
+        "sessionId": null,
+        "runId": null,
+        "startedAt": null,
+        "completedAt": null,
+        "deployUrl": null,
+        "testResults": null,
+        "passed": null,
+        "bugs": []
+      },
+      "iterations": 0,
+      "maxIterations": 5
+    },
+    "4": {
+      "name": "比赛记录 + 导入",
+      "status": "pending",
+      "devAgent": {
+        "status": "pending",
+        "sessionId": null,
+        "runId": null,
+        "startedAt": null,
+        "completedAt": null,
+        "commitHash": null
+      },
+      "testAgent": {
+        "status": "pending",
+        "sessionId": null,
+        "runId": null,
+        "startedAt": null,
+        "completedAt": null,
+        "deployUrl": null,
+        "testResults": null,
+        "passed": null,
+        "bugs": []
+      },
+      "iterations": 0,
+      "maxIterations": 5
+    },
+    "5": {
+      "name": "视频上传 + 分析",
+      "status": "pending",
+      "devAgent": {
+        "status": "pending",
+        "sessionId": null,
+        "runId": null,
+        "startedAt": null,
+        "completedAt": null,
+        "commitHash": null
+      },
+      "testAgent": {
+        "status": "pending",
+        "sessionId": null,
+        "runId": null,
+        "startedAt": null,
+        "completedAt": null,
+        "deployUrl": null,
+        "testResults": null,
+        "passed": null,
+        "bugs": []
+      },
+      "iterations": 0,
+      "maxIterations": 5
+    }
+  },
+  "cronJobId": "937d5f78-4795-4865-92ec-d15740d41584",
+  "githubRepo": "julius19910613/player-grouping",
+  "notifyChannel": "feishu",
+  "notifyTarget": "ou_78a4033e2e70343e3c945ab93877ac18"
+}
