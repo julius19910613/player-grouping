@@ -183,7 +183,7 @@ ${JSON.stringify(playersInfo, null, 2)}
     const balanceScore = this.calculateBalanceScore(teams);
 
     // 添加优势/劣势分析
-    const optimizedTeams: OptimizedTeam[] = teams.map((team, index) => ({
+    const optimizedTeams: OptimizedTeam[] = teams.map((team) => ({
       id: team.id,
       name: team.name,
       players: team.players.map(p => ({
@@ -292,7 +292,7 @@ ${JSON.stringify(playersInfo, null, 2)}
   /**
    * 生成分组说明
    */
-  private generateExplanation(teams: OptimizedTeam[], goal: string): string {
+  private generateExplanation(_teams: OptimizedTeam[], goal: string): string {
     const goalDescriptions: Record<string, string> = {
       balance: '基于能力平衡的传统算法分组',
       competitive: '追求高强度对抗的分组方案',

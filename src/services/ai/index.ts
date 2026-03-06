@@ -28,8 +28,10 @@ export { GroupingOptimizationService, groupingOptimizationService } from './grou
  * 检查 AI 服务状态
  */
 export function getAIServiceStatus(): import('./types').AIServiceStatus {
-  const available = aiClient.isAvailable();
-  const lastError = aiClient.getLastError();
+  // 在运行时获取实例
+  const { aiClient: client } = require('./client');
+  const available = client.isAvailable();
+  const lastError = client.getLastError();
 
   return {
     available,
@@ -43,12 +45,18 @@ export function getAIServiceStatus(): import('./types').AIServiceStatus {
  * AI 服务统一入口
  */
 export const aiService = {
-  /** 能力评分建议服务 */
-  skillSuggestion: skillSuggestionService,
-  /** 分组优化服务 */
-  groupingOptimization: groupingOptimizationService,
+  get skillSuggestion() {
+    const { skillSuggestionService: service } = require('./skill-suggestion.service');
+    return service;
+  },
+  get groupingOptimization() {
+    const { groupingOptimizationService: service } = require('./grouping-optimization.service');
+    return service;
+  },
+  get client() {
+    const { aiClient: client } = require('./client');
+    return client;
+  },
   /** 检查服务状态 */
   getStatus: getAIServiceStatus,
-  /** AI 客户端 */
-  client: aiClient,
 };

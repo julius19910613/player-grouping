@@ -315,8 +315,7 @@ ${observations.map((o, i) => `${i + 1}. ${o}`).join('\n')}` : ''}
   /**
    * 格式化当前评分
    */
-  private formatCurrentSkills(skills: Partial<BasketballSkills>, position: BasketballPosition): string {
-    const positionDetail = POSITION_DETAILS[position];
+  private formatCurrentSkills(skills: Partial<BasketballSkills>, _position: BasketballPosition): string {
     return Object.entries(skills)
       .filter(([_, value]) => typeof value === 'number')
       .map(([key, value]) => `${key}: ${value}`)
