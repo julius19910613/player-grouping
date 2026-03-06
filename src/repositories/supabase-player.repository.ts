@@ -65,11 +65,8 @@ export class SupabasePlayerRepository {
       // 根据用户 ID 过滤
       if (userId) {
         query = query.eq('user_id', userId);  // 查询当前用户的球员
-      } else {
-        // 游客模式：返回空数组（未认证用户无权查询数据）
-        console.warn('⚠️ 未认证用户，返回空数组');
-        return [];
       }
+      // 游客模式：RLS 策略允许查看 user_id IS NULL 的公共数据，不需要额外过滤
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
