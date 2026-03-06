@@ -4,6 +4,11 @@ import type { BasketballSkills } from '../types/basketball';
 import type { Player } from '../hooks/usePlayerManager';
 import { PositionSelect } from './PositionSelect';
 import { SkillSlider } from './SkillSlider';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Alert, AlertDescription } from './ui/alert';
 
 interface EditPlayerModalProps {
   player: Player;
@@ -140,193 +145,122 @@ export const EditPlayerModal: React.FC<EditPlayerModalProps> = ({
 
   return (
     <div
-      className="modal-backdrop"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
       onClick={handleBackdropClick}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000
-      }}
     >
-      <div
-        className="modal-content"
-        style={{
-          backgroundColor: '#fff',
-          borderRadius: '12px',
-          maxWidth: '500px',
-          width: '90%',
-          maxHeight: '90vh',
-          overflow: 'auto',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
-        }}
-      >
+      <Card className="w-[90%] max-w-md max-h-[90vh] overflow-auto">
         {/* 头部 */}
-        <div style={{
-          padding: '20px',
-          borderBottom: '1px solid #eee',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <h3 style={{ margin: 0 }}>✏️ 编辑球员</h3>
-          <button
+        <CardHeader className="flex flex-row items-center justify-between border-b border-slate-200">
+          <CardTitle className="text-lg">✏️ 编辑球员</CardTitle>
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={onCancel}
-            style={{
-              border: 'none',
-              background: 'none',
-              fontSize: '24px',
-              cursor: 'pointer',
-              color: '#666'
-            }}
+            className="text-slate-400 hover:text-slate-600"
           >
             ×
-          </button>
-        </div>
+          </Button>
+        </CardHeader>
 
         {/* 表单 */}
-        <form onSubmit={handleSubmit} style={{ padding: '20px' }}>
-          {/* 错误提示 */}
-          {errors.length > 0 && (
-            <div style={{
-              padding: '12px',
-              backgroundColor: '#fee2e2',
-              borderRadius: '8px',
-              marginBottom: '16px',
-              color: '#dc2626'
-            }}>
-              {errors.map((error, index) => (
-                <div key={index}>• {error}</div>
-              ))}
+        <CardContent className="p-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* 错误提示 */}
+            {errors.length > 0 && (
+              <Alert variant="destructive">
+                <AlertDescription>
+                  {errors.map((error, index) => (
+                    <div key={index}>• {error}</div>
+                  ))}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* 球员名称 */}
+            <div className="space-y-2">
+              <Label>球员名称</Label>
+              <Input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="输入球员名称"
+              />
             </div>
-          )}
 
-          {/* 球员名称 */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>
-              球员名称:
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="输入球员名称"
-              style={{
-                width: '100%',
-                padding: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '14px',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
+            {/* 位置选择 */}
+            <div>
+              <PositionSelect value={position} onChange={setPosition} />
+            </div>
 
-          {/* 位置选择 */}
-          <div style={{ marginBottom: '16px' }}>
-            <PositionSelect value={position} onChange={setPosition} />
-          </div>
+            {/* 能力值设置 */}
+            <div className="space-y-2">
+              <h4 className="text-sm text-slate-500 font-medium">
+                能力值设置
+              </h4>
 
-          {/* 能力值设置 */}
-          <div style={{ marginBottom: '16px' }}>
-            <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#666' }}>
-              能力值设置
-            </h4>
-
-            {Object.entries(SKILL_CATEGORIES).map(([category, skillKeys]) => (
-              <div key={category} style={{ marginBottom: '8px' }}>
-                <div
-                  onClick={() => toggleCategory(category)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '8px',
-                    backgroundColor: expandedCategories.has(category) ? '#f0f0f0' : '#fafafa',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontWeight: 500,
-                    fontSize: '13px'
-                  }}
-                >
-                  <span>{expandedCategories.has(category) ? '▼' : '▶'}</span>
-                  <span>{category}</span>
-                </div>
-
-                {expandedCategories.has(category) && (
-                  <div style={{ padding: '8px 12px', backgroundColor: '#fafafa', borderRadius: '0 0 4px 4px' }}>
-                    {skillKeys.map((skillKey) => (
-                      <SkillSlider
-                        key={skillKey}
-                        label={SKILL_NAMES[skillKey] || skillKey}
-                        value={skills[skillKey as keyof BasketballSkills] as number}
-                        onChange={(value) => handleSkillChange(skillKey as keyof BasketballSkills, value)}
-                        color={positionColor}
-                      />
-                    ))}
+              {Object.entries(SKILL_CATEGORIES).map(([category, skillKeys]) => (
+                <div key={category}>
+                  <div
+                    onClick={() => toggleCategory(category)}
+                    className="flex items-center gap-2 p-2 rounded cursor-pointer font-medium text-sm hover:bg-slate-100 transition-colors"
+                    style={{ backgroundColor: expandedCategories.has(category) ? '#f0f0f0' : '#fafafa' }}
+                  >
+                    <span>{expandedCategories.has(category) ? '▼' : '▶'}</span>
+                    <span>{category}</span>
                   </div>
-                )}
+
+                  {expandedCategories.has(category) && (
+                    <div className="p-3 bg-slate-50 rounded-b">
+                      {skillKeys.map((skillKey) => (
+                        <SkillSlider
+                          key={skillKey}
+                          label={SKILL_NAMES[skillKey] || skillKey}
+                          value={skills[skillKey as keyof BasketballSkills] as number}
+                          onChange={(value) => handleSkillChange(skillKey as keyof BasketballSkills, value)}
+                          color={positionColor}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* 总评显示 */}
+              <div 
+                className="mt-3 p-3 rounded-lg text-center"
+                style={{ backgroundColor: `${positionColor}20` }}
+              >
+                <span className="text-sm text-slate-500">总体评分: </span>
+                <span 
+                  className="text-3xl font-bold"
+                  style={{ color: positionColor }}
+                >
+                  {calculatedOverall}
+                </span>
               </div>
-            ))}
-
-            {/* 总评显示 */}
-            <div style={{
-              marginTop: '12px',
-              padding: '12px',
-              backgroundColor: positionColor + '20',
-              borderRadius: '8px',
-              textAlign: 'center'
-            }}>
-              <span style={{ fontSize: '14px', color: '#666' }}>总体评分: </span>
-              <span style={{ fontSize: '28px', fontWeight: 'bold', color: positionColor }}>
-                {calculatedOverall}
-              </span>
             </div>
-          </div>
 
-          {/* 操作按钮 */}
-          <div style={{ display: 'flex', gap: '12px' }}>
-            <button
-              type="button"
-              onClick={onCancel}
-              style={{
-                flex: 1,
-                padding: '12px',
-                backgroundColor: '#f0f0f0',
-                color: '#333',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                cursor: 'pointer'
-              }}
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              style={{
-                flex: 1,
-                padding: '12px',
-                backgroundColor: positionColor,
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                cursor: 'pointer'
-              }}
-            >
-              保存
-            </button>
-          </div>
-        </form>
-      </div>
+            {/* 操作按钮 */}
+            <div className="flex gap-3 pt-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="flex-1"
+                onClick={onCancel}
+              >
+                取消
+              </Button>
+              <Button 
+                type="submit" 
+                className="flex-1"
+                style={{ backgroundColor: positionColor }}
+              >
+                保存
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };

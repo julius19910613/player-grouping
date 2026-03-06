@@ -1,55 +1,52 @@
-/* 导入主题变量 */
-@import './styles/variables.css';
+@import "tailwindcss";
 
-/* 基础样式 */
-#root {
-  width: 100%;
-  min-height: 100vh;
+/* shadcn/ui CSS Variables - Violet Theme */
+@theme {
+  --color-background: hsl(0 0% 100%);
+  --color-foreground: hsl(240 10% 3.9%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(240 10% 3.9%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(240 10% 3.9%);
+  --color-primary: hsl(262.1 83.3% 57.8%);
+  --color-primary-foreground: hsl(0 0% 98%);
+  --color-secondary: hsl(240 4.8% 95.9%);
+  --color-secondary-foreground: hsl(240 5.9% 10%);
+  --color-muted: hsl(240 4.8% 95.9%);
+  --color-muted-foreground: hsl(240 3.8% 46.1%);
+  --color-accent: hsl(240 4.8% 95.9%);
+  --color-accent-foreground: hsl(240 5.9% 10%);
+  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-destructive-foreground: hsl(0 0% 98%);
+  --color-border: hsl(240 5.9% 90%);
+  --color-input: hsl(240 5.9% 90%);
+  --color-ring: hsl(262.1 83.3% 57.8%);
+  --radius: 0.5rem;
 }
 
-/* 链接样式 */
-a {
-  font-weight: 500;
-  color: var(--color-primary);
-  text-decoration: none;
-  transition: color var(--transition-fast);
+/* Base styles */
+* {
+  border-color: var(--color-border);
 }
 
-a:hover {
-  color: var(--color-primary-dark);
-}
-
-/* 表单元素 */
-input, select, textarea {
-  font-family: var(--font-family);
-  font-size: var(--font-size-base);
-  color: var(--color-text);
+body {
   background-color: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-sm) var(--spacing-md);
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  color: var(--color-foreground);
+  font-family: system-ui, -apple-system, sans-serif;
 }
 
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px var(--color-primary-bg);
+/* Custom utility for the app gradient background */
+.app-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
-input::placeholder {
-  color: var(--color-text-light);
-}
-
-/* 滑块样式 */
+/* Range input styling */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   height: 8px;
-  background: var(--color-border-light);
-  border-radius: var(--radius-full);
-  padding: 0;
-  border: none;
+  background: var(--color-muted);
+  border-radius: 9999px;
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -61,12 +58,7 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   cursor: pointer;
   border: 2px solid white;
-  box-shadow: var(--shadow-md);
-  transition: transform var(--transition-fast);
-}
-
-input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 input[type="range"]::-moz-range-thumb {
@@ -76,59 +68,5 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 50%;
   cursor: pointer;
   border: 2px solid white;
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
-
-/* 选择框样式 */
-select {
-  cursor: pointer;
-  padding-right: var(--spacing-xl);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236B7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
-  background-position: right 8px center;
-  background-repeat: no-repeat;
-  background-size: 20px;
-}
-
-/* 实用工具类 */
-.text-center { text-align: center; }
-.text-left { text-align: left; }
-.text-right { text-align: right; }
-
-.font-bold { font-weight: 700; }
-.font-medium { font-weight: 500; }
-.font-normal { font-weight: 400; }
-
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.items-center { align-items: center; }
-.justify-center { justify-content: center; }
-.justify-between { justify-content: space-between; }
-.gap-sm { gap: var(--spacing-sm); }
-.gap-md { gap: var(--spacing-md); }
-.gap-lg { gap: var(--spacing-lg); }
-
-.w-full { width: 100%; }
-.h-full { height: 100%; }
-
-.rounded { border-radius: var(--radius-md); }
-.rounded-lg { border-radius: var(--radius-lg); }
-
-.shadow { box-shadow: var(--shadow-md); }
-.shadow-lg { box-shadow: var(--shadow-lg); }
-
-.p-sm { padding: var(--spacing-sm); }
-.p-md { padding: var(--spacing-md); }
-.p-lg { padding: var(--spacing-lg); }
-.p-xl { padding: var(--spacing-xl); }
-
-.m-sm { margin: var(--spacing-sm); }
-.m-md { margin: var(--spacing-md); }
-.m-lg { margin: var(--spacing-lg); }
-
-.mb-sm { margin-bottom: var(--spacing-sm); }
-.mb-md { margin-bottom: var(--spacing-md); }
-.mb-lg { margin-bottom: var(--spacing-lg); }
-
-.mt-sm { margin-top: var(--spacing-sm); }
-.mt-md { margin-top: var(--spacing-md); }
-.mt-lg { margin-top: var(--spacing-lg); }

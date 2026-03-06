@@ -9,7 +9,22 @@ import {
 import { GroupingAlgorithm } from './utils/groupingAlgorithm';
 import { Storage } from './utils/storage';
 import { playerRepository } from './repositories';
-import './App.css';
+
+// shadcn/ui components
+import { Button } from './components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
+import { Input } from './components/ui/input';
+import { Label } from './components/ui/label';
+import { Badge } from './components/ui/badge';
+import { Alert, AlertDescription } from './components/ui/alert';
+import { Skeleton } from './components/ui/skeleton';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from './components/ui/select';
 
 function App() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -169,222 +184,306 @@ function App() {
   };
 
   return (
-    <div className="app">
-      <header className="header">
-        <h1>🏀 篮球球员分组程序</h1>
-        <p>智能分配球员到平衡的团队</p>
+    <div className="min-h-screen bg-gradient-to-br from-violet-500 to-purple-600">
+      {/* Header */}
+      <header 
+        className="bg-white/95 backdrop-blur-sm shadow-md py-8 px-4 text-center"
+        data-testid="app-header"
+      >
+        <h1 className="text-4xl font-bold text-slate-800 mb-2">🏀 篮球球员分组程序</h1>
+        <p className="text-slate-600 text-lg">智能分配球员到平衡的团队</p>
       </header>
 
-      <main className="main">
+      <main className="max-w-7xl mx-auto p-4 md:p-8">
         {/* 加载状态 */}
         {loading && (
-          <div className="loading">
-            <p>⏳ 加载球员数据中...</p>
-          </div>
+          <Card className="mb-6">
+            <CardContent className="py-8 text-center">
+              <div className="flex items-center justify-center gap-3">
+                <Skeleton className="h-5 w-5 rounded-full animate-spin" />
+                <p className="text-slate-600">⏳ 加载球员数据中...</p>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* 错误提示 */}
         {error && (
-          <div className="error">
-            <p>❌ {error}</p>
-            <button onClick={loadPlayers}>重试</button>
-          </div>
+          <Alert variant="destructive" className="mb-6">
+            <AlertDescription className="flex items-center justify-between">
+              <span>❌ {error}</span>
+              <Button variant="outline" size="sm" onClick={loadPlayers}>
+                重试
+              </Button>
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* 添加球员表单 */}
-        <section className="section">
-          <h2>添加球员</h2>
-          <form onSubmit={handleAddPlayer} className="player-form">
-            <div className="form-row">
-              <label>
-                姓名：
-                <input
-                  type="text"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                  placeholder="输入球员姓名"
-                />
-              </label>
-              <label>
-                位置：
-                <select
-                  value={playerPosition}
-                  onChange={(e) => setPlayerPosition(e.target.value as BasketballPosition)}
-                >
-                  {Object.entries(POSITION_DETAILS).map(([key, detail]) => (
-                    <option key={key} value={key}>
-                      {detail.icon} {detail.name} ({detail.englishName})
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="skills-section">
-              <h3>能力评分 (1-99)</h3>
-              {Object.entries(skillCategories).map(([category, skillKeys]) => (
-                <div key={category} className="skill-category">
-                  <h4>{category}</h4>
-                  <div className="skills-grid">
-                    {skillKeys.map((skillKey) => (
-                      <label key={skillKey}>
-                        {skillNames[skillKey]}:
-                        <input
-                          type="range"
-                          min="1"
-                          max="99"
-                          value={skills[skillKey as keyof typeof skills] as number}
-                          onChange={(e) =>
-                            setSkills({ ...skills, [skillKey]: parseInt(e.target.value) })
-                          }
-                        />
-                        <span>{skills[skillKey as keyof typeof skills]}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <button type="submit" className="btn btn-primary">
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-xl text-slate-800 border-b-2 border-violet-500 pb-2">
               添加球员
-            </button>
-          </form>
-        </section>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleAddPlayer} className="space-y-6" data-testid="player-form">
+              {/* 姓名和位置 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="playerName">姓名</Label>
+                  <Input
+                    id="playerName"
+                    type="text"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    placeholder="输入球员姓名"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="position">位置</Label>
+                  <Select
+                    value={playerPosition}
+                    onValueChange={(value) => setPlayerPosition(value as BasketballPosition)}
+                  >
+                    <SelectTrigger id="position">
+                      <SelectValue placeholder="选择位置" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(POSITION_DETAILS).map(([key, detail]) => (
+                        <SelectItem key={key} value={key}>
+                          {detail.icon} {detail.name} ({detail.englishName})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* 技能评分 */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-slate-700">能力评分 (1-99)</h3>
+                {Object.entries(skillCategories).map(([category, skillKeys]) => (
+                  <div key={category} className="space-y-3">
+                    <h4 className="text-sm font-medium text-slate-600">{category}</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {skillKeys.map((skillKey) => (
+                        <div key={skillKey} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-600">{skillNames[skillKey]}</span>
+                            <span className="font-semibold text-violet-600">
+                              {skills[skillKey as keyof typeof skills]}
+                            </span>
+                          </div>
+                          <input
+                            type="range"
+                            min="1"
+                            max="99"
+                            value={skills[skillKey as keyof typeof skills] as number}
+                            onChange={(e) =>
+                              setSkills({ ...skills, [skillKey]: parseInt(e.target.value) })
+                            }
+                            className="w-full"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <Button type="submit" className="w-full md:w-auto">
+                添加球员
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
 
         {/* 球员列表 */}
-        <section className="section">
-          <h2>球员列表 ({players.length})</h2>
-          <div className="player-actions">
-            <button onClick={handleExport} className="btn">
-              导出数据
-            </button>
-            <label className="btn">
-              导入数据
-              <input type="file" accept=".json" onChange={handleImport} hidden />
-            </label>
-            <button onClick={loadPlayers} className="btn">
-              刷新数据
-            </button>
-          </div>
-          {!loading && players.length === 0 ? (
-            <p className="empty-message">暂无球员，请先添加球员</p>
-          ) : (
-            <div className="player-list">
-              {players.map((player) => (
-                <div key={player.id} className="player-card">
-                  <div className="player-header">
-                    <h3>{player.name}</h3>
-                    <span 
-                      className="position-badge"
-                      style={{ 
-                        backgroundColor: `${POSITION_DETAILS[player.position].color}20`,
-                        borderColor: POSITION_DETAILS[player.position].color
-                      }}
-                    >
-                      {POSITION_DETAILS[player.position].icon} {POSITION_DETAILS[player.position].name}
-                    </span>
-                    <button
-                      onClick={() => handleDeletePlayer(player.id)}
-                      className="btn-delete"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <div className="player-skills">
-                    <div className="skill-item overall">
-                      <span>总体能力</span>
-                      <strong>{player.skills.overall}</strong>
-                    </div>
-                    <div className="skill-item">
-                      <span>投篮</span>
-                      <span>{Math.round((player.skills.twoPointShot + player.skills.threePointShot + player.skills.freeThrow) / 3)}</span>
-                    </div>
-                    <div className="skill-item">
-                      <span>组织</span>
-                      <span>{Math.round((player.skills.passing + player.skills.ballControl + player.skills.courtVision) / 3)}</span>
-                    </div>
-                    <div className="skill-item">
-                      <span>防守</span>
-                      <span>{Math.round((player.skills.perimeterDefense + player.skills.interiorDefense) / 2)}</span>
-                    </div>
-                    <div className="skill-item">
-                      <span>篮板</span>
-                      <span>{Math.round((player.skills.offensiveRebound + player.skills.defensiveRebound) / 2)}</span>
-                    </div>
-                    <div className="skill-item">
-                      <span>身体素质</span>
-                      <span>{Math.round((player.skills.speed + player.skills.strength + player.skills.stamina + player.skills.vertical) / 4)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <CardTitle className="text-xl text-slate-800 border-b-2 border-violet-500 pb-2">
+                球员列表 ({players.length})
+              </CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  导出数据
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <label className="cursor-pointer">
+                    导入数据
+                    <input type="file" accept=".json" onChange={handleImport} hidden />
+                  </label>
+                </Button>
+                <Button variant="outline" size="sm" onClick={loadPlayers}>
+                  刷新数据
+                </Button>
+              </div>
             </div>
-          )}
-        </section>
+          </CardHeader>
+          <CardContent>
+            {!loading && players.length === 0 ? (
+              <p className="text-center text-slate-400 text-lg py-8">暂无球员，请先添加球员</p>
+            ) : (
+              <div 
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+                data-testid="player-list"
+              >
+                {players.map((player) => (
+                  <Card 
+                    key={player.id} 
+                    className="bg-slate-50 shadow-sm hover:shadow-md transition-shadow"
+                    data-testid="player-card"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="font-semibold text-slate-800">{player.name}</h3>
+                        <Badge
+                          variant="outline"
+                          className="border-2"
+                          style={{ 
+                            backgroundColor: `${POSITION_DETAILS[player.position].color}20`,
+                            borderColor: POSITION_DETAILS[player.position].color,
+                            color: POSITION_DETAILS[player.position].color
+                          }}
+                        >
+                          {POSITION_DETAILS[player.position].icon} {POSITION_DETAILS[player.position].name}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50"
+                          onClick={() => handleDeletePlayer(player.id)}
+                        >
+                          ✕
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">总体能力</span>
+                          <strong className="text-violet-600">{player.skills.overall}</strong>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">投篮</span>
+                          <span className="text-slate-700">{Math.round((player.skills.twoPointShot + player.skills.threePointShot + player.skills.freeThrow) / 3)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">组织</span>
+                          <span className="text-slate-700">{Math.round((player.skills.passing + player.skills.ballControl + player.skills.courtVision) / 3)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">防守</span>
+                          <span className="text-slate-700">{Math.round((player.skills.perimeterDefense + player.skills.interiorDefense) / 2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">篮板</span>
+                          <span className="text-slate-700">{Math.round((player.skills.offensiveRebound + player.skills.defensiveRebound) / 2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">身体素质</span>
+                          <span className="text-slate-700">{Math.round((player.skills.speed + player.skills.strength + player.skills.stamina + player.skills.vertical) / 4)}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* 分组设置 */}
         {players.length > 0 && (
-          <section className="section">
-            <h2>分组设置</h2>
-            <div className="grouping-controls">
-              <label>
-                团队数量：
-                <input
-                  type="number"
-                  min="2"
-                  max={Math.floor(players.length / 2)}
-                  value={teamCount}
-                  onChange={(e) => setTeamCount(parseInt(e.target.value))}
-                />
-              </label>
-              <button onClick={handleGrouping} className="btn btn-primary">
-                开始分组
-              </button>
-              {showGrouping && (
-                <button onClick={handleRegroup} className="btn">
-                  重新分组
-                </button>
-              )}
-            </div>
-          </section>
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-xl text-slate-800 border-b-2 border-violet-500 pb-2">
+                分组设置
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="teamCount">团队数量：</Label>
+                  <Input
+                    id="teamCount"
+                    type="number"
+                    min="2"
+                    max={Math.floor(players.length / 2)}
+                    value={teamCount}
+                    onChange={(e) => setTeamCount(parseInt(e.target.value))}
+                    className="w-20"
+                  />
+                </div>
+                <Button 
+                  onClick={handleGrouping}
+                  data-testid="grouping-button"
+                >
+                  开始分组
+                </Button>
+                {showGrouping && (
+                  <Button variant="outline" onClick={handleRegroup}>
+                    重新分组
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* 分组结果 */}
         {showGrouping && teams.length > 0 && (
-          <section className="section">
-            <h2>分组结果</h2>
-            <div className="teams-grid">
-              {teams.map((team) => (
-                <div key={team.id} className="team-card">
-                  <div className="team-header">
-                    <h3>{team.name}</h3>
-                    <span className="team-skill">总能力: {team.totalSkill}</span>
-                  </div>
-                  <div className="team-players">
-                    {team.players.map((player) => (
-                      <div key={player.id} className="team-player">
-                        <span className="player-name">{player.name}</span>
-                        <span 
-                          className="player-position"
-                          style={{ color: POSITION_DETAILS[player.position].color }}
-                        >
-                          {POSITION_DETAILS[player.position].icon} {POSITION_DETAILS[player.position].name}
-                        </span>
-                        <span className="player-overall">{player.skills.overall}</span>
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-xl text-slate-800 border-b-2 border-violet-500 pb-2">
+                分组结果
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+                {teams.map((team) => (
+                  <Card 
+                    key={team.id}
+                    className="bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center mb-4 pb-2 border-b border-white/30">
+                        <h3 className="font-semibold text-lg">{team.name}</h3>
+                        <Badge className="bg-white/20 text-white border-0">
+                          总能力: {team.totalSkill}
+                        </Badge>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="balance-info">
-              <p>
-                平衡度: {GroupingAlgorithm.calculateBalance(teams).toFixed(2)}
-                (越小越平衡)
-              </p>
-            </div>
-          </section>
+                      <div className="space-y-2">
+                        {team.players.map((player) => (
+                          <div 
+                            key={player.id}
+                            className="flex justify-between items-center bg-white/15 rounded-md px-3 py-2 text-sm"
+                          >
+                            <span className="font-medium">{player.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span 
+                                className="bg-white/30 px-2 py-0.5 rounded-full text-xs"
+                                style={{ color: POSITION_DETAILS[player.position].color }}
+                              >
+                                {POSITION_DETAILS[player.position].icon} {POSITION_DETAILS[player.position].name}
+                              </span>
+                              <span className="font-semibold">{player.skills.overall}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              <div className="text-center bg-slate-100 rounded-lg p-4">
+                <p className="text-slate-600 text-lg">
+                  平衡度: <strong className="text-violet-600">{GroupingAlgorithm.calculateBalance(teams).toFixed(2)}</strong>
+                  <span className="text-sm text-slate-500 ml-2">(越小越平衡)</span>
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </main>
     </div>

@@ -9,10 +9,15 @@ interface SkillSliderProps {
 
 export const SkillSlider: React.FC<SkillSliderProps> = ({ label, value, onChange, color = '#FF6B35' }) => {
   return (
-    <div className="skill-slider" style={{ marginBottom: '8px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <label style={{ fontSize: '12px', fontWeight: 500 }}>{label}</label>
-        <span style={{ fontSize: '12px', fontWeight: 'bold', color }}>{value}</span>
+    <div className="mb-2">
+      <div className="flex justify-between mb-1">
+        <label className="text-xs font-medium">{label}</label>
+        <span 
+          className="text-xs font-bold"
+          style={{ color }}
+        >
+          {value}
+        </span>
       </div>
       <input
         type="range"
@@ -20,10 +25,8 @@ export const SkillSlider: React.FC<SkillSliderProps> = ({ label, value, onChange
         max="99"
         value={value}
         onChange={(e) => onChange(parseInt(e.target.value))}
-        style={{
-          width: '100%',
-          accentColor: color
-        }}
+        className="w-full"
+        style={{ accentColor: color }}
       />
     </div>
   );

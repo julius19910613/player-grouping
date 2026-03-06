@@ -4,6 +4,10 @@ import { BasketballPosition, createDefaultBasketballSkills, calculateOverallSkil
 import type { BasketballSkills } from '../types/basketball';
 import { PositionSelect } from './PositionSelect';
 import { SkillSlider } from './SkillSlider';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
 interface Player {
   name: string;
@@ -97,132 +101,105 @@ export const PlayerForm: React.FC<PlayerFormProps> = ({ onAddPlayer }) => {
 
   return (
     <motion.form
-      className="player-form"
       onSubmit={handleSubmit}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      style={{
-        padding: '20px',
-        backgroundColor: '#fff',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        maxWidth: '400px'
-      }}
+      data-testid="player-form"
     >
-      <h3 style={{ margin: '0 0 16px 0', color: '#333' }}>🏀 添加球员</h3>
-      
-      {/* 球员名称 */}
-      <div style={{ marginBottom: '16px' }}>
-        <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>
-          球员名称:
-        </label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="输入球员名称"
-          required
-          style={{
-            width: '100%',
-            padding: '10px',
-            border: '1px solid #ddd',
-            borderRadius: '6px',
-            fontSize: '14px',
-            boxSizing: 'border-box'
-          }}
-        />
-      </div>
-
-      {/* 位置选择 */}
-      <div style={{ marginBottom: '16px' }}>
-        <PositionSelect value={position} onChange={setPosition} />
-      </div>
-
-      {/* 能力值设置 */}
-      <div style={{ marginBottom: '16px' }}>
-        <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#666' }}>
-          能力值设置
-        </h4>
-        
-        {Object.entries(SKILL_CATEGORIES).map(([category, skillKeys]) => (
-          <div key={category} style={{ marginBottom: '8px' }}>
-            <div
-              onClick={() => toggleCategory(category)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px',
-                backgroundColor: expandedCategories.has(category) ? '#f0f0f0' : '#fafafa',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                fontWeight: 500,
-                fontSize: '13px'
-              }}
-            >
-              <span>{expandedCategories.has(category) ? '▼' : '▶'}</span>
-              <span>{category}</span>
-            </div>
-            
-            <AnimatePresence>
-              {expandedCategories.has(category) && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  style={{ padding: '8px 12px', backgroundColor: '#fafafa', borderRadius: '0 0 4px 4px' }}
-                >
-                {skillKeys.map((skillKey) => (
-                  <SkillSlider
-                    key={skillKey}
-                    label={SKILL_NAMES[skillKey] || skillKey}
-                    value={skills[skillKey as keyof BasketballSkills] as number}
-                    onChange={(value) => handleSkillChange(skillKey as keyof BasketballSkills, value)}
-                    color={positionColor}
-                  />
-                ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+      <Card className="max-w-md shadow-md">
+        <CardHeader>
+          <CardTitle className="text-lg text-slate-800">🏀 添加球员</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* 球员名称 */}
+          <div className="space-y-2">
+            <Label>球员名称</Label>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="输入球员名称"
+              required
+            />
           </div>
-        ))}
 
-        {/* 总评显示 */}
-        <div style={{
-          marginTop: '12px',
-          padding: '12px',
-          backgroundColor: positionColor + '20',
-          borderRadius: '8px',
-          textAlign: 'center'
-        }}>
-          <span style={{ fontSize: '14px', color: '#666' }}>总体评分: </span>
-          <span style={{ fontSize: '28px', fontWeight: 'bold', color: positionColor }}>
-            {skills.overall}
-          </span>
-        </div>
-      </div>
+          {/* 位置选择 */}
+          <div>
+            <PositionSelect value={position} onChange={setPosition} />
+          </div>
 
-      {/* 提交按钮 */}
-      <motion.button
-        type="submit"
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        style={{
-          width: '100%',
-          padding: '12px',
-          backgroundColor: positionColor,
-          color: '#fff',
-          border: 'none',
-          borderRadius: '8px',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          cursor: 'pointer'
-        }}
-      >
-        添加球员
-      </motion.button>
+          {/* 能力值设置 */}
+          <div className="space-y-2">
+            <h4 className="text-sm text-slate-500 font-medium">
+              能力值设置
+            </h4>
+            
+            {Object.entries(SKILL_CATEGORIES).map(([category, skillKeys]) => (
+              <div key={category}>
+                <div
+                  onClick={() => toggleCategory(category)}
+                  className="flex items-center gap-2 p-2 rounded cursor-pointer font-medium text-sm hover:bg-slate-100 transition-colors"
+                  style={{ backgroundColor: expandedCategories.has(category) ? '#f0f0f0' : '#fafafa' }}
+                >
+                  <span>{expandedCategories.has(category) ? '▼' : '▶'}</span>
+                  <span>{category}</span>
+                </div>
+                
+                <AnimatePresence>
+                  {expandedCategories.has(category) && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="p-3 bg-slate-50 rounded-b"
+                    >
+                      {skillKeys.map((skillKey) => (
+                        <SkillSlider
+                          key={skillKey}
+                          label={SKILL_NAMES[skillKey] || skillKey}
+                          value={skills[skillKey as keyof BasketballSkills] as number}
+                          onChange={(value) => handleSkillChange(skillKey as keyof BasketballSkills, value)}
+                          color={positionColor}
+                        />
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))}
+
+            {/* 总评显示 */}
+            <div 
+              className="mt-3 p-3 rounded-lg text-center"
+              style={{ backgroundColor: `${positionColor}20` }}
+            >
+              <span className="text-sm text-slate-500">总体评分: </span>
+              <span 
+                className="text-3xl font-bold"
+                style={{ color: positionColor }}
+              >
+                {skills.overall}
+              </span>
+            </div>
+          </div>
+
+          {/* 提交按钮 */}
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button 
+              type="submit" 
+              className="w-full"
+              style={{ backgroundColor: positionColor }}
+            >
+              添加球员
+            </Button>
+          </motion.div>
+        </CardContent>
+      </Card>
     </motion.form>
   );
 };

@@ -1,5 +1,13 @@
 import React from 'react';
 import { BasketballPosition, POSITION_DETAILS } from '../types/basketball';
+import { Label } from './ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
 
 interface PositionSelectProps {
   value: BasketballPosition;
@@ -8,28 +16,26 @@ interface PositionSelectProps {
 
 export const PositionSelect: React.FC<PositionSelectProps> = ({ value, onChange }) => {
   return (
-    <div className="position-select">
-      <label htmlFor="position">位置:</label>
-      <select
-        id="position"
+    <div className="space-y-2">
+      <Label>位置</Label>
+      <Select
         value={value}
-        onChange={(e) => onChange(e.target.value as BasketballPosition)}
-        style={{
-          padding: '8px 12px',
-          borderRadius: '4px',
-          border: '1px solid #ccc',
-          fontSize: '14px'
-        }}
+        onValueChange={(v) => onChange(v as BasketballPosition)}
       >
-        {(Object.keys(POSITION_DETAILS) as BasketballPosition[]).map((position) => {
-          const details = POSITION_DETAILS[position];
-          return (
-            <option key={position} value={position}>
-              {details.icon} {details.name} ({details.englishName})
-            </option>
-          );
-        })}
-      </select>
+        <SelectTrigger>
+          <SelectValue placeholder="选择位置" />
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.keys(POSITION_DETAILS) as BasketballPosition[]).map((position) => {
+            const details = POSITION_DETAILS[position];
+            return (
+              <SelectItem key={position} value={position}>
+                {details.icon} {details.name} ({details.englishName})
+              </SelectItem>
+            );
+          })}
+        </SelectContent>
+      </Select>
     </div>
   );
 };
