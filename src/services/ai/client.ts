@@ -49,7 +49,7 @@ export class AIClient {
    * 检查 AI 服务是否可用
    */
   isAvailable(): boolean {
-    return !!(this.config.apiKey && this.config.baseUrl);
+    return !!(this.config.apiKey && this.config.apiKey.trim() && this.config.baseUrl);
   }
 
   /**
