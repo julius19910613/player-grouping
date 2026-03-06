@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Player, Team, GroupingConfig, BasketballSkills } from './types';
 import { 
   BasketballPosition, 
@@ -22,6 +22,12 @@ import { Skeleton } from './components/ui/skeleton';
 import { ShellBar } from './components/ShellBar';
 import { PlayerFormDialog } from './components/PlayerFormDialog';
 
+// 新增数据管理组件
+import { Toaster } from './components/ui/toaster';
+import { ImportWizard } from './components/import/ImportWizard';
+import { PlayerDetailDialog } from './components/dialogs/PlayerDetailDialog';
+import { toastSuccess, toastInfo } from './lib/toast';
+
 function App() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
@@ -31,6 +37,12 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // 新增：数据管理相关状态
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importType, setImportType] = useState<'players' | 'games'>('players');
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   // 加载球员数据（从 Supabase）
   useEffect(() => {
@@ -129,6 +141,100 @@ function App() {
     }
   };
 
+  // 新增：批量导入球员处理函数
+  const handleBatchImport = useCallback(async (data: Array<{
+    name?: string;
+    position?: BasketballPosition;
+    skills?: Partial<BasketballSkills>;
+    [key: string]: unknown;
+  }>) => {
+    try {
+      let success = 0;
+      let failed = 0;
+
+      for (const item of data) {
+        try {
+          if (!item.name || !item.position) {
+            failed++;
+            continue;
+          }
+
+          const skills: BasketballSkills = {
+            twoPointShot: 50,
+            threePointShot: 50,
+            freeThrow: 50,
+            passing: 50,
+            ballControl: 50,
+            courtVision: 50,
+            perimeterDefense: 50,
+            interiorDefense: 50,
+            steals: 50,
+            blocks: 50,
+            offensiveRebound: 50,
+            defensiveRebound: 50,
+            speed: 50,
+            strength: 50,
+            stamina: 50,
+            vertical: 50,
+            basketballIQ: 50,
+            teamwork: 50,
+            clutch: 50,
+            overall: 50,
+            ...item.skills,
+          };
+
+          await playerRepository.create({
+            name: item.name,
+            position: item.position,
+            skills,
+          });
+          success++;
+        } catch {
+          failed++;
+        }
+      }
+
+      // 重新加载球员列表
+      await loadPlayers();
+      
+      return { success, failed };
+    } catch (error) {
+      console.error('导入失败:', error);
+      throw error;
+    }
+  }, [loadPlayers]);
+
+  // 新增：打开导入弹窗
+  const handleOpenImportPlayers = useCallback(() => {
+    setImportType('players');
+    setIsImportOpen(true);
+  }, []);
+
+  const handleOpenImportGames = useCallback(() => {
+    setImportType('games');
+    setIsImportOpen(true);
+  }, []);
+
+  // 新增：导出数据
+  const handleExportData = useCallback(() => {
+    Storage.exportPlayers(players);
+    toastSuccess(`成功导出 ${players.length} 名球员数据`);
+  }, [players]);
+
+  // 新增：编辑球员（从详情页）
+  const handleEditFromDetail = useCallback(() => {
+    setIsDetailOpen(false);
+    // 这里可以打开编辑弹窗
+    toastInfo('编辑功能开发中...');
+  }, []);
+
+  // 新增：查看球员详情（目前未连接到UI，保留以备后用）
+  // @ts-ignore - 功能保留以备后用
+  const _unusedOpenPlayerDetail = useCallback((player: Player) => {
+    setSelectedPlayer(player);
+    setIsDetailOpen(true);
+  }, []);
+
   // 过滤球员（搜索）
   const filteredPlayers = players.filter(player => 
     player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -137,7 +243,11 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background pt-12">
-      <ShellBar />
+      <ShellBar 
+        onOpenImportPlayers={handleOpenImportPlayers}
+        onOpenImportGames={handleOpenImportGames}
+        onOpenExport={handleExportData}
+      />
       
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* 加载状态 */}
@@ -407,6 +517,25 @@ function App() {
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleAddPlayer}
       />
+
+      {/* Import Wizard */}
+      <ImportWizard
+        open={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        type={importType}
+        onImport={handleBatchImport}
+      />
+
+      {/* Player Detail Dialog */}
+      <PlayerDetailDialog
+        open={isDetailOpen}
+        onClose={() => setIsDetailOpen(false)}
+        player={selectedPlayer}
+        onEdit={handleEditFromDetail}
+      />
+
+      {/* Toast Notifications */}
+      <Toaster />
     </div>
   );
 }

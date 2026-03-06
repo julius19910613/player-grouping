@@ -1,6 +1,7 @@
 {
-  "timestamp": "2026-03-06T09:36:43.809Z",
-  "phase": "Local DOM Validation",
+  "timestamp": "2026-03-06T07:43:42.005Z",
+  "phase": "Production DOM Validation",
+  "url": "https://julius19910613.github.io/player-grouping/",
   "shell_bar": true,
   "player_grid": true,
   "player_cards_count": 19,
@@ -12,12 +13,12 @@
       "党党企代表要生三胎⚡ 小前锋✕58总体能力投篮65组织64防守61篮板61身体素质65"
     ]
   },
-  "dialog_opens": true,
-  "data_management_menu": true,
-  "import_wizard": false,
-  "player_card_menu": false,
-  "player_detail_dialog": false,
   "console_errors": 0,
-  "all_passed": false,
-  "errors": []
+  "network_errors": [],
+  "all_passed": true,
+  "errors": [],
+  "performance": {
+    "load_time_ms": 2829,
+    "dom_content_loaded_ms": 0
+  }
 }
