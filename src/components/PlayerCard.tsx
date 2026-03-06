@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { POSITION_DETAILS } from '../types/basketball';
 import type { BasketballPosition, BasketballSkills } from '../types/basketball';
@@ -35,15 +35,12 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   onDelete,
   onViewDetails 
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
   const positionDetails = POSITION_DETAILS[player.position];
 
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
       data-testid="player-card"
     >
       <Card className="overflow-hidden shadow-md hover:shadow-lg transition-shadow relative group">
@@ -55,9 +52,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  className={`h-8 w-8 bg-white/80 hover:bg-white transition-opacity ${
-                    isHovered ? 'opacity-100' : 'opacity-0'
-                  }`}
+                  className="h-8 w-8 bg-white/80 hover:bg-white opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                   data-testid="player-card-menu"
                 >
                   <MoreVertical className="w-4 h-4" />
