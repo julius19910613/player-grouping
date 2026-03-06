@@ -16,3 +16,9 @@ export { Badge, badgeVariants } from './badge'
 export { Alert, AlertTitle, AlertDescription } from './alert'
 export { Skeleton } from './skeleton'
 export { Label } from './label'
+
+// SAP Fiori components
+export { Dialog, DialogPortal, DialogOverlay, DialogClose, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from './dialog'
+export { Avatar, AvatarImage, AvatarFallback } from './avatar'
+export { Progress } from './progress'
+export { Separator } from './separator'

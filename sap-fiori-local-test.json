@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-03-06T07:39:46.250Z",
+  "phase": "Local DOM Validation",
+  "shell_bar": true,
+  "player_grid": true,
+  "player_cards_count": 19,
+  "player_data": {
+    "loaded": true,
+    "sample": [
+      "DDao小帅⚡ 小前锋✕60总体能力投篮68组织65防守62篮板63身体素质67",
+      "黑黑老王⚡ 小前锋✕56总体能力投篮63组织62防守59篮板59身体素质63",
+      "党党企代表要生三胎⚡ 小前锋✕58总体能力投篮65组织64防守61篮板61身体素质65"
+    ]
+  },
+  "dialog_opens": true,
+  "console_errors": 0,
+  "all_passed": true,
+  "errors": []
+}

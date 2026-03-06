@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import type { Player, Team, GroupingConfig } from './types';
+import type { Player, Team, GroupingConfig, BasketballSkills } from './types';
 import { 
   BasketballPosition, 
   POSITION_DETAILS, 
-  createDefaultBasketballSkills,
   calculateOverallSkill 
 } from './types';
 import { GroupingAlgorithm } from './utils/groupingAlgorithm';
@@ -18,13 +17,10 @@ import { Label } from './components/ui/label';
 import { Badge } from './components/ui/badge';
 import { Alert, AlertDescription } from './components/ui/alert';
 import { Skeleton } from './components/ui/skeleton';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from './components/ui/select';
+
+// SAP Fiori components
+import { ShellBar } from './components/ShellBar';
+import { PlayerFormDialog } from './components/PlayerFormDialog';
 
 function App() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -33,11 +29,8 @@ function App() {
   const [showGrouping, setShowGrouping] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // 表单状态
-  const [playerName, setPlayerName] = useState('');
-  const [playerPosition, setPlayerPosition] = useState<BasketballPosition>(BasketballPosition.PG);
-  const [skills, setSkills] = useState(createDefaultBasketballSkills());
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // 加载球员数据（从 Supabase）
   useEffect(() => {
@@ -60,39 +53,25 @@ function App() {
   };
 
   // 添加球员
-  const handleAddPlayer = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!playerName.trim()) {
-      alert('请输入球员姓名');
-      return;
-    }
-
+  const handleAddPlayer = async (data: { name: string; position: BasketballPosition; skills: BasketballSkills }) => {
     try {
       // 计算总体能力
-      const overall = calculateOverallSkill(skills, playerPosition);
-      const playerSkills = { ...skills, overall };
+      const overall = calculateOverallSkill(data.skills, data.position);
+      const playerSkills = { ...data.skills, overall };
 
       const newPlayer = await playerRepository.create({
-        name: playerName,
-        position: playerPosition,
+        name: data.name,
+        position: data.position,
         skills: playerSkills,
       });
 
       setPlayers([...players, newPlayer]);
-      resetForm();
+      setIsFormOpen(false);
       console.log(`✅ 添加球员成功: ${newPlayer.name}`);
     } catch (err) {
       console.error('❌ 添加球员失败:', err);
       alert('添加球员失败，请重试');
     }
-  };
-
-  // 重置表单
-  const resetForm = () => {
-    setPlayerName('');
-    setPlayerPosition(BasketballPosition.PG);
-    setSkills(createDefaultBasketballSkills());
   };
 
   // 删除球员
@@ -150,58 +129,24 @@ function App() {
     }
   };
 
-  // 技能分类
-  const skillCategories = {
-    '投篮': ['twoPointShot', 'threePointShot', 'freeThrow'],
-    '组织': ['passing', 'ballControl', 'courtVision'],
-    '防守': ['perimeterDefense', 'interiorDefense', 'steals', 'blocks'],
-    '篮板': ['offensiveRebound', 'defensiveRebound'],
-    '身体素质': ['speed', 'strength', 'stamina', 'vertical'],
-    '篮球智商': ['basketballIQ', 'teamwork', 'clutch']
-  };
-
-  // 技能中文映射
-  const skillNames: Record<string, string> = {
-    twoPointShot: '两分投篮',
-    threePointShot: '三分投篮',
-    freeThrow: '罚球',
-    passing: '传球',
-    ballControl: '控球',
-    courtVision: '场上视野',
-    perimeterDefense: '外线防守',
-    interiorDefense: '内线防守',
-    steals: '抢断',
-    blocks: '盖帽',
-    offensiveRebound: '进攻篮板',
-    defensiveRebound: '防守篮板',
-    speed: '速度',
-    strength: '力量',
-    stamina: '耐力',
-    vertical: '弹跳',
-    basketballIQ: '篮球智商',
-    teamwork: '团队配合',
-    clutch: '关键时刻'
-  };
+  // 过滤球员（搜索）
+  const filteredPlayers = players.filter(player => 
+    player.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    POSITION_DETAILS[player.position].name.includes(searchQuery)
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary to-accent">
-      {/* Header */}
-      <header 
-        className="bg-white/95 backdrop-blur-sm shadow-md py-8 px-4 text-center"
-        data-testid="app-header"
-      >
-        <h1 className="text-4xl font-bold text-slate-800 mb-2">🏀 篮球球员分组程序</h1>
-        <p className="text-slate-600 text-lg">智能分配球员到平衡的团队</p>
-      </header>
-
-      <main className="max-w-7xl mx-auto p-4 md:p-8">
+    <div className="min-h-screen bg-background pt-12">
+      <ShellBar />
+      
+      <main className="max-w-7xl mx-auto px-4 py-6">
         {/* 加载状态 */}
         {loading && (
           <Card className="mb-6">
             <CardContent className="py-8 text-center">
               <div className="flex items-center justify-center gap-3">
                 <Skeleton className="h-5 w-5 rounded-full animate-spin" />
-                <p className="text-slate-600">⏳ 加载球员数据中...</p>
+                <p className="text-muted-foreground">⏳ 加载球员数据中...</p>
               </div>
             </CardContent>
           </Card>
@@ -219,187 +164,158 @@ function App() {
           </Alert>
         )}
 
-        {/* 添加球员表单 */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-xl text-slate-800 border-b-2 border-primary pb-2">
+        {/* Quick Actions */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+          {/* 搜索和筛选 */}
+          <div className="flex items-center gap-3">
+            <Input 
+              placeholder="搜索球员..." 
+              className="w-64"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-testid="search-input"
+            />
+          </div>
+          
+          {/* 操作按钮 */}
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline"
+              size="sm"
+              onClick={handleExport}
+              data-testid="export-button"
+            >
+              导出
+            </Button>
+            <Button 
+              variant="outline"
+              size="sm"
+              asChild
+              data-testid="import-button"
+            >
+              <label className="cursor-pointer">
+                导入
+                <input type="file" accept=".json" onChange={handleImport} hidden />
+              </label>
+            </Button>
+            <Button 
+              size="sm"
+              onClick={() => setIsFormOpen(true)}
+              data-testid="add-player-button"
+            >
               添加球员
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAddPlayer} className="space-y-6" data-testid="player-form">
-              {/* 姓名和位置 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="playerName">姓名</Label>
-                  <Input
-                    id="playerName"
-                    type="text"
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                    placeholder="输入球员姓名"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="position">位置</Label>
-                  <Select
-                    value={playerPosition}
-                    onValueChange={(value) => setPlayerPosition(value as BasketballPosition)}
-                  >
-                    <SelectTrigger id="position">
-                      <SelectValue placeholder="选择位置" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(POSITION_DETAILS).map(([key, detail]) => (
-                        <SelectItem key={key} value={key}>
-                          {detail.icon} {detail.name} ({detail.englishName})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* 技能评分 */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium text-slate-700">能力评分 (1-99)</h3>
-                {Object.entries(skillCategories).map(([category, skillKeys]) => (
-                  <div key={category} className="space-y-3">
-                    <h4 className="text-sm font-medium text-slate-600">{category}</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {skillKeys.map((skillKey) => (
-                        <div key={skillKey} className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-slate-600">{skillNames[skillKey]}</span>
-                            <span className="font-semibold text-primary">
-                              {skills[skillKey as keyof typeof skills]}
-                            </span>
-                          </div>
-                          <input
-                            type="range"
-                            min="1"
-                            max="99"
-                            value={skills[skillKey as keyof typeof skills] as number}
-                            onChange={(e) =>
-                              setSkills({ ...skills, [skillKey]: parseInt(e.target.value) })
-                            }
-                            className="w-full"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <Button type="submit" className="w-full md:w-auto">
-                添加球员
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* 球员列表 */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle className="text-xl text-slate-800 border-b-2 border-primary pb-2">
-                球员列表 ({players.length})
-              </CardTitle>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" onClick={handleExport}>
-                  导出数据
-                </Button>
-                <Button variant="outline" size="sm" asChild>
-                  <label className="cursor-pointer">
-                    导入数据
-                    <input type="file" accept=".json" onChange={handleImport} hidden />
-                  </label>
-                </Button>
-                <Button variant="outline" size="sm" onClick={loadPlayers}>
-                  刷新数据
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {!loading && players.length === 0 ? (
-              <p className="text-center text-slate-400 text-lg py-8">暂无球员，请先添加球员</p>
-            ) : (
-              <div 
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-                data-testid="player-list"
+            </Button>
+          </div>
+        </div>
+        
+        {/* Player Cards Grid */}
+        {!loading && filteredPlayers.length > 0 && (
+          <div 
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6"
+            data-testid="player-grid"
+          >
+            {filteredPlayers.map(player => (
+              <Card 
+                key={player.id}
+                className="hover:shadow-lg transition-shadow bg-card"
+                data-testid="player-card"
               >
-                {players.map((player) => (
-                  <Card 
-                    key={player.id} 
-                    className="bg-slate-50 shadow-sm hover:shadow-md transition-shadow"
-                    data-testid="player-card"
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="font-semibold text-slate-800">{player.name}</h3>
-                        <Badge
-                          variant="outline"
-                          className="border-2"
-                          style={{ 
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-lg">
+                        {player.name[0]}
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{player.name}</CardTitle>
+                        <Badge 
+                          variant="secondary" 
+                          className="mt-1"
+                          style={{
                             backgroundColor: `${POSITION_DETAILS[player.position].color}20`,
-                            borderColor: POSITION_DETAILS[player.position].color,
                             color: POSITION_DETAILS[player.position].color
                           }}
                         >
                           {POSITION_DETAILS[player.position].icon} {POSITION_DETAILS[player.position].name}
                         </Badge>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-red-500 hover:text-red-600 hover:bg-red-50"
-                          onClick={() => handleDeletePlayer(player.id)}
-                        >
-                          ✕
-                        </Button>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">总体能力</span>
-                          <strong className="text-primary">{player.skills.overall}</strong>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">投篮</span>
-                          <span className="text-slate-700">{Math.round((player.skills.twoPointShot + player.skills.threePointShot + player.skills.freeThrow) / 3)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">组织</span>
-                          <span className="text-slate-700">{Math.round((player.skills.passing + player.skills.ballControl + player.skills.courtVision) / 3)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">防守</span>
-                          <span className="text-slate-700">{Math.round((player.skills.perimeterDefense + player.skills.interiorDefense) / 2)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">篮板</span>
-                          <span className="text-slate-700">{Math.round((player.skills.offensiveRebound + player.skills.defensiveRebound) / 2)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">身体素质</span>
-                          <span className="text-slate-700">{Math.round((player.skills.speed + player.skills.strength + player.skills.stamina + player.skills.vertical) / 4)}</span>
-                        </div>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDeletePlayer(player.id)}
+                      data-testid={`delete-player-${player.id}`}
+                    >
+                      ✕
+                    </Button>
+                  </div>
+                </CardHeader>
+                
+                <CardContent>
+                  {/* KPI */}
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="text-center">
+                      <div className="text-3xl font-bold text-primary">
+                        {player.skills.overall}
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                      <div className="text-xs text-muted-foreground">总体能力</div>
+                    </div>
+                  </div>
+                  
+                  {/* 技能条 */}
+                  <div className="space-y-2">
+                    <SkillBar 
+                      label="投篮" 
+                      value={Math.round((player.skills.twoPointShot + player.skills.threePointShot + player.skills.freeThrow) / 3)} 
+                    />
+                    <SkillBar 
+                      label="组织" 
+                      value={Math.round((player.skills.passing + player.skills.ballControl + player.skills.courtVision) / 3)} 
+                    />
+                    <SkillBar 
+                      label="防守" 
+                      value={Math.round((player.skills.perimeterDefense + player.skills.interiorDefense) / 2)} 
+                    />
+                    <SkillBar 
+                      label="篮板" 
+                      value={Math.round((player.skills.offensiveRebound + player.skills.defensiveRebound) / 2)} 
+                    />
+                    <SkillBar 
+                      label="身体素质" 
+                      value={Math.round((player.skills.speed + player.skills.strength + player.skills.stamina + player.skills.vertical) / 4)} 
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
-        {/* 分组设置 */}
+        {/* Empty State */}
+        {!loading && filteredPlayers.length === 0 && (
+          <Card className="mb-6">
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground text-lg">
+                {searchQuery ? '没有找到匹配的球员' : '暂无球员，请先添加球员'}
+              </p>
+              {!searchQuery && (
+                <Button 
+                  className="mt-4" 
+                  onClick={() => setIsFormOpen(true)}
+                >
+                  添加第一名球员
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+        
+        {/* Grouping Section */}
         {players.length > 0 && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-xl text-slate-800 border-b-2 border-primary pb-2">
-                分组设置
-              </CardTitle>
+              <CardTitle>分组设置</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap items-center gap-4">
@@ -431,13 +347,11 @@ function App() {
           </Card>
         )}
 
-        {/* 分组结果 */}
+        {/* Grouping Results */}
         {showGrouping && teams.length > 0 && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-xl text-slate-800 border-b-2 border-primary pb-2">
-                分组结果
-              </CardTitle>
+              <CardTitle>分组结果</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
@@ -476,16 +390,41 @@ function App() {
                   </Card>
                 ))}
               </div>
-              <div className="text-center bg-slate-100 rounded-lg p-4">
-                <p className="text-slate-600 text-lg">
+              <div className="text-center bg-muted rounded-lg p-4">
+                <p className="text-foreground text-lg">
                   平衡度: <strong className="text-primary">{GroupingAlgorithm.calculateBalance(teams).toFixed(2)}</strong>
-                  <span className="text-sm text-slate-500 ml-2">(越小越平衡)</span>
+                  <span className="text-sm text-muted-foreground ml-2">(越小越平衡)</span>
                 </p>
               </div>
             </CardContent>
           </Card>
         )}
       </main>
+      
+      {/* Dialog Form */}
+      <PlayerFormDialog 
+        open={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={handleAddPlayer}
+      />
+    </div>
+  );
+}
+
+// 简单的技能条组件
+function SkillBar({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-2">
+        <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-primary rounded-full"
+            style={{ width: `${value}%` }}
+          />
+        </div>
+        <span className="font-medium w-8">{value}</span>
+      </div>
     </div>
   );
 }
