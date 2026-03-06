@@ -46,9 +46,10 @@ async function verifyMobileMenu() {
     
     // 2. 检查三个点图标是否可见
     console.log('\n📋 检查移动端三个点图标...');
-    const menuButtons = await page.$$('[data-testid="player-card-menu"]');
+    const menuButtons = await page.$$('[data-testid^="player-card-menu-"]');
     
     if (menuButtons.length > 0) {
+      console.log(`  ✅ 找到 ${menuButtons.length} 个三个点图标`);
       // 检查第一个按钮的可见性
       const firstButton = menuButtons[0];
       const isVisible = await firstButton.evaluate(el => {

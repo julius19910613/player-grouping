@@ -368,10 +368,22 @@ function App() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => toastInfo(`查看详情: ${player.name}`)}>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedPlayer(player);
+                            setIsDetailOpen(true);
+                          }}
+                        >
                           👁️ 查看详情
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toastInfo(`快速编辑: ${player.name}`)}>
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            setSelectedPlayer(player);
+                            setIsDetailOpen(true);
+                            // TODO: 添加快速编辑模式
+                            toastInfo('快速编辑功能开发中...');
+                          }}
+                        >
                           ✏️ 快速编辑
                         </DropdownMenuItem>
                         <DropdownMenuItem 
