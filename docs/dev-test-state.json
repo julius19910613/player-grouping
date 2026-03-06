@@ -5,18 +5,18 @@
   "currentPhase": 2,
   "totalPhases": 5,
   "startedAt": "2026-03-06T09:35:00+08:00",
-  "updatedAt": "2026-03-06T09:42:00+08:00",
+  "updatedAt": "2026-03-06T09:42:10+08:00",
   "phases": {
     "1": {
       "name": "数据库 + 基础 API",
       "status": "completed",
       "devAgent": {
         "status": "completed",
-        "sessionId": "agent:main:subagent:7ffddfa5-d8d4-46f3-b93f-24dcb06a5bb8",
-        "runId": "3b23e200-3807-4778-b5b6-c96155a951bc",
-        "startedAt": "2026-03-06T09:36:30+08:00",
-        "completedAt": "2026-03-06T09:40:00+08:00",
-        "commitHash": "0a9a568"
+        "sessionId": "agent:main:subagent:2a6d7818-b2ff-419a-b83d-c00e2b10c27b",
+        "runId": "phase1-dev-run",
+        "startedAt": "2026-03-06T09:35:00+08:00",
+        "completedAt": "2026-03-06T09:45:00+08:00",
+        "commitHash": "eed52f6"
       },
       "testAgent": {
         "status": "completed",
@@ -35,10 +35,10 @@
       "name": "AI 服务集成",
       "status": "in_progress",
       "devAgent": {
-        "status": "pending",
-        "sessionId": null,
-        "runId": null,
-        "startedAt": null,
+        "status": "running",
+        "sessionId": "agent:main:subagent:a358f51d-4ad4-4081-a53a-c808d75eaca1",
+        "runId": "9a3bbad8-a9ed-4d75-b282-c9fbe36e9b57",
+        "startedAt": "2026-03-06T09:42:30+08:00",
         "completedAt": null,
         "commitHash": null
       },
