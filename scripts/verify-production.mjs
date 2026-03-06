@@ -21,6 +21,8 @@ async function verifyProduction() {
       loaded: false,
       sample: []
     },
+    data_management_menu: false,
+    player_card_menu: false,
     console_errors: 0,
     network_errors: [],
     all_passed: false,
@@ -113,14 +115,47 @@ async function verifyProduction() {
       console.log('  ❌ Player Cards 验证失败:', error.message);
     }
     
-    // 4. 验证背景色（Fiori 风格）
+    // 4. 验证数据管理菜单
+    console.log('\n📋 验证数据管理菜单...');
+    const dataMenu = await page.$('[data-testid="data-management-menu"]');
+    if (dataMenu) {
+      results.data_management_menu = true;
+      console.log('  ✅ 数据管理菜单存在');
+    } else {
+      results.errors.push('线上: 数据管理菜单不存在');
+      console.log('  ⚠️  数据管理菜单不存在');
+    }
+    
+    // 5. 验证 Player Card 操作菜单（第一个卡片）
+    if (results.player_cards_count > 0) {
+      console.log('\n📋 验证 Player Card 操作菜单...');
+      const playerCard = await page.$('[data-testid="player-card"]');
+      if (playerCard) {
+        // 模拟 hover
+        await playerCard.evaluate(el => {
+          el.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+          el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        });
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const menuButton = await page.$('[data-testid="player-card-menu"]');
+        if (menuButton) {
+          results.player_card_menu = true;
+          console.log('  ✅ Player Card 操作菜单存在');
+        } else {
+          console.log('  ⚠️  Player Card 操作菜单未找到（可能需要更长的渲染时间）');
+        }
+      }
+    }
+    
+    // 6. 验证背景色（Fiori 风格）
     console.log('\n📋 验证 Fiori 背景...');
     const bgColor = await page.evaluate(() => {
       return window.getComputedStyle(document.body).backgroundColor;
     });
     console.log(`  背景色: ${bgColor}`);
     
-    // 5. 验证响应式布局
+    // 7. 验证响应式布局
     console.log('\n📋 验证响应式布局...');
     const viewports = [
       { name: 'Mobile', width: 375, height: 667 },
@@ -136,7 +171,7 @@ async function verifyProduction() {
       console.log(`  ${viewport.name} (${viewport.width}x${viewport.height}): ${cards.length} cards visible`);
     }
     
-    // 6. 截图
+    // 8. 截图
     await page.setViewport({ width: 1440, height: 900 });
     await page.screenshot({ 
       path: 'sap-fiori-production.png', 
@@ -149,6 +184,7 @@ async function verifyProduction() {
       results.shell_bar &&
       results.player_grid &&
       results.player_cards_count > 0 &&
+      results.data_management_menu &&
       results.network_errors.length === 0;
     
     results.all_passed = passed;
@@ -160,6 +196,8 @@ async function verifyProduction() {
     console.log('  Shell Bar:', results.shell_bar ? '✅' : '❌');
     console.log('  Player Grid:', results.player_grid ? '✅' : '❌');
     console.log('  Player Cards:', results.player_cards_count);
+    console.log('  数据管理菜单:', results.data_management_menu ? '✅' : '❌');
+    console.log('  Player Card 菜单:', results.player_card_menu ? '✅' : '❌');
     console.log('  Console Errors:', results.console_errors);
     console.log('  Network Errors:', results.network_errors.length);
     console.log('  Load Time:', `${results.performance.load_time_ms}ms`);
