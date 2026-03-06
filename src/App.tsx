@@ -17,6 +17,12 @@ import { Label } from './components/ui/label';
 import { Badge } from './components/ui/badge';
 import { Alert, AlertDescription } from './components/ui/alert';
 import { Skeleton } from './components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './components/ui/dropdown-menu';
 
 // SAP Fiori components
 import { ShellBar } from './components/ShellBar';
@@ -327,7 +333,7 @@ function App() {
             {filteredPlayers.map(player => (
               <Card 
                 key={player.id}
-                className="hover:shadow-lg transition-shadow bg-card"
+                className="hover:shadow-lg transition-shadow bg-card group"
                 data-testid="player-card"
               >
                 <CardHeader className="pb-3">
@@ -350,15 +356,32 @@ function App() {
                         </Badge>
                       </div>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDeletePlayer(player.id)}
-                      data-testid={`delete-player-${player.id}`}
-                    >
-                      ✕
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-8 w-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                          data-testid={`player-card-menu-${player.id}`}
+                        >
+                          ⋮
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => toastInfo(`查看详情: ${player.name}`)}>
+                          👁️ 查看详情
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toastInfo(`快速编辑: ${player.name}`)}>
+                          ✏️ 快速编辑
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeletePlayer(player.id)}
+                          className="text-destructive"
+                        >
+                          🗑️ 删除
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </CardHeader>
                 
