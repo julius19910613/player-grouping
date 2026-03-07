@@ -1,0 +1,228 @@
+/**
+ * ChatView 组件测试
+ * 测试聊天视图的渲染、交互和状态管理
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { ChatView } from '../../components/ChatView';
+import { chatService } from '../../services/chat-service';
+
+// Mock chatService
+vi.mock('../../services/chat-service', () => ({
+  chatService: {
+    sendMessage: vi.fn(),
+    clearHistory: vi.fn(),
+  },
+}));
+
+describe('ChatView', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('渲染', () => {
+    it('应该渲染欢迎信息', () => {
+      render(<ChatView />);
+      
+      expect(screen.getByText('💬 智能助手')).toBeInTheDocument();
+      expect(screen.getByText('欢迎使用智能助手')).toBeInTheDocument();
+    });
+
+    it('应该渲染输入框和发送按钮', () => {
+      render(<ChatView />);
+      
+      expect(screen.getByPlaceholderText(/输入消息/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /发送/i })).toBeInTheDocument();
+    });
+
+    it('应该显示快捷键提示', () => {
+      render(<ChatView />);
+      
+      expect(screen.getByText(/Cmd\/Ctrl \+ K/)).toBeInTheDocument();
+    });
+  });
+
+  describe('发送消息', () => {
+    it('应该能够发送消息', async () => {
+      const mockResponse = '这是 AI 的回复';
+      (chatService.sendMessage as any).mockResolvedValue(mockResponse);
+
+      render(<ChatView />);
+      
+      const input = screen.getByPlaceholderText(/输入消息/);
+      const sendButton = screen.getByRole('button', { name: /发送/i });
+
+      // 输入消息
+      await userEvent.type(input, '你好');
+      expect(input).toHaveValue('你好');
+
+      // 点击发送
+      fireEvent.click(sendButton);
+
+      // 等待消息发送
+      await waitFor(() => {
+        expect(chatService.sendMessage).toHaveBeenCalledWith('你好');
+      });
+
+      // 等待 AI 回复显示
+      await waitFor(() => {
+        expect(screen.getByText('你好')).toBeInTheDocument();
+        expect(screen.getByText(mockResponse)).toBeInTheDocument();
+      });
+    });
+
+    it('应该能够使用 Enter 键发送消息', async () => {
+      const mockResponse = 'AI 回复';
+      (chatService.sendMessage as any).mockResolvedValue(mockResponse);
+
+      render(<ChatView />);
+      
+      const input = screen.getByPlaceholderText(/输入消息/);
+
+      // 输入消息并按 Enter
+      await userEvent.type(input, '测试消息{enter}');
+
+      await waitFor(() => {
+        expect(chatService.sendMessage).toHaveBeenCalledWith('测试消息');
+      });
+    });
+
+    it('应该能够使用 Shift+Enter 换行', async () => {
+      render(<ChatView />);
+      
+      const input = screen.getByPlaceholderText(/输入消息/) as HTMLTextAreaElement;
+
+      // 输入消息并按 Shift+Enter
+      await userEvent.type(input, '第一行{shift>}{enter}{/shift}第二行');
+
+      expect(input.value).toBe('第一行\n第二行');
+    });
+
+    it('发送时应该清空输入框', async () => {
+      (chatService.sendMessage as any).mockResolvedValue('回复');
+
+      render(<ChatView />);
+      
+      const input = screen.getByPlaceholderText(/输入消息/) as HTMLTextAreaElement;
+      await userEvent.type(input, '测试');
+      await userEvent.click(screen.getByRole('button', { name: /发送/i }));
+
+      await waitFor(() => {
+        expect(input.value).toBe('');
+      });
+    });
+
+    it('应该禁用空消息发送', () => {
+      render(<ChatView />);
+      
+      const sendButton = screen.getByRole('button', { name: /发送/i });
+      expect(sendButton).toBeDisabled();
+    });
+  });
+
+  describe('加载状态', () => {
+    it('发送消息时应该显示加载指示器', async () => {
+      let resolvePromise: any;
+      (chatService.sendMessage as any).mockImplementation(() => {
+        return new Promise(resolve => {
+          resolvePromise = resolve;
+        });
+      });
+
+      render(<ChatView />);
+      
+      const input = screen.getByPlaceholderText(/输入消息/);
+      await userEvent.type(input, '测试{enter}');
+
+      // 应该显示加载状态
+      await waitFor(() => {
+        expect(screen.getByRole('status', { name: /加载中/i })).toBeInTheDocument();
+      });
+
+      // 完成请求
+      resolvePromise('回复');
+
+      // 加载状态应该消失
+      await waitFor(() => {
+        expect(screen.queryByRole('status', { name: /加载中/i })).not.toBeInTheDocument();
+      });
+    });
+
+    it('加载时应该禁用输入', async () => {
+      (chatService.sendMessage as any).mockImplementation(() => new Promise(() => {}));
+
+      render(<ChatView />);
+      
+      const input = screen.getByPlaceholderText(/输入消息/);
+      await userEvent.type(input, '测试{enter}');
+
+      await waitFor(() => {
+        expect(input).toBeDisabled();
+      });
+    });
+  });
+
+  describe('错误处理', () => {
+    it('应该处理错误并移除用户消息', async () => {
+      (chatService.sendMessage as any).mockRejectedValue({
+        code: 'ERROR',
+        message: '错误',
+        retryable: false,
+      });
+
+      render(<ChatView />);
+      
+      const input = screen.getByPlaceholderText(/输入消息/);
+      await userEvent.type(input, '测试{enter}');
+
+      // 等待消息被移除
+      await waitFor(() => {
+        expect(screen.queryByText('测试')).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('清空对话', () => {
+    it('应该能够清空对话', async () => {
+      (chatService.sendMessage as any).mockResolvedValue('回复');
+
+      render(<ChatView />);
+      
+      // 发送一条消息
+      const input = screen.getByPlaceholderText(/输入消息/);
+      await userEvent.type(input, '测试{enter}');
+
+      await waitFor(() => {
+        expect(screen.getByText('测试')).toBeInTheDocument();
+      });
+
+      // 点击清空按钮
+      window.confirm = vi.fn(() => true);
+      const clearButton = screen.getByRole('button', { name: /清空对话/i });
+      fireEvent.click(clearButton);
+
+      await waitFor(() => {
+        expect(screen.queryByText('测试')).not.toBeInTheDocument();
+        expect(chatService.clearHistory).toHaveBeenCalled();
+      });
+    });
+  });
+
+  describe('无障碍', () => {
+    it('应该有正确的 ARIA 标签', () => {
+      render(<ChatView />);
+      
+      expect(screen.getByRole('main', { name: /聊天助手/i })).toBeInTheDocument();
+      expect(screen.getByRole('log', { name: /聊天消息列表/i })).toBeInTheDocument();
+    });
+
+    it('输入框应该有正确的无障碍属性', () => {
+      render(<ChatView />);
+      
+      const input = screen.getByLabelText(/消息输入框/i);
+      expect(input).toBeInTheDocument();
+    });
+  });
+});

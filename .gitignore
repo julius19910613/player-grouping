@@ -71,4 +71,8 @@ Thumbs.db
 
 # Misc
 *.pem
+*.key
 *.p12
+
+# Vercel
+.vercel/

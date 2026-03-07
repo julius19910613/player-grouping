@@ -36,12 +36,30 @@
   - 本地数据持久化
   - 直观的拖拽界面
 
+### 🤖 AI 聊天助手（NEW！）
+- **智能对话**
+  - 基于 Google Gemini 的 AI 助手
+  - 支持上下文理解和多轮对话
+  - 实时流式响应
+
+- **Function Calling**
+  - 联网搜索最新篮球信息（Brave Search API）
+  - 查询球员统计数据
+  - 智能分组建议
+
+- **监控与反馈**
+  - API 调用量监控
+  - 错误率追踪
+  - 性能指标分析
+  - 用户反馈收集（点赞/点踩）
+
 ### 🔧 技术特性
 - TypeScript 类型安全
 - React Hooks 状态管理
 - 组件化架构设计
 - 单元测试覆盖
 - 性能优化
+- Vercel 无服务器部署
 
 ## 🛠️ 技术栈
 
@@ -136,9 +154,14 @@ npm install
    # 复制环境变量模板
    cp .env.example .env.local
 
-   # 编辑 .env.local，填入你的 Supabase 配置
+   # 编辑 .env.local，填入你的配置
+   # Supabase（可选）
    VITE_SUPABASE_URL=https://your-project.supabase.co
    VITE_SUPABASE_ANON_KEY=your-anon-key
+   
+   # AI 服务（可选，用于智能助手）
+   # Gemini API Key（后端使用，前端无需配置）
+   # Brave Search API Key（后端使用，前端无需配置）
    ```
 
 4. **重启开发服务器**
@@ -299,6 +322,27 @@ player-grouping/
 - 点击右上角的设置图标
 - 在深色/浅色主题之间切换
 - 主题设置会自动保存
+
+### AI 聊天助手（NEW！）
+
+1. **打开聊天助手**
+   - 点击侧边栏的"AI 助手"标签
+   - 或使用快捷键 `Cmd/Ctrl + K`
+
+2. **使用功能**
+   - 询问篮球相关问题
+   - 查询球员统计数据
+   - 联网搜索最新篮球新闻（需配置 Brave Search API）
+   - 获取智能分组建议
+
+3. **反馈功能**
+   - 点击消息下方的 👍 👎 按钮快速反馈
+   - 点击 💬 按钮提交详细建议
+
+4. **监控统计**
+   - 点击右下角图表图标查看使用统计
+   - 查看 API 调用量、错误率、响应时间
+   - 查看用户反馈统计
 
 ## 🧮 分组算法
 

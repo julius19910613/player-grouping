@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import type { Player, Team, GroupingConfig, BasketballSkills } from './types';
 import { 
   BasketballPosition, 
@@ -28,14 +29,16 @@ import {
 import { ShellBar } from './components/ShellBar';
 import { PlayerFormDialog } from './components/PlayerFormDialog';
 
+// Chat components
+import { ChatView } from './components/ChatView';
+
 // 新增数据管理组件
 import { Toaster } from './components/ui/toaster';
 import { ImportWizard } from './components/import/ImportWizard';
 import { PlayerDetailDialog } from './components/dialogs/PlayerDetailDialog';
 import { toastSuccess, toastInfo } from './lib/toast';
 
-// Phase 2: 新组件
-import { TabNavigation } from './components/TabNavigation';
+// Phase 3: 新组件
 import { PlayerSelection } from './components/PlayerSelection';
 import { DragDropGrouping } from './components/DragDropGrouping';
 
@@ -55,18 +58,10 @@ function App() {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Phase 3: Tab 导航和分组相关状态
-  const [activeTab, setActiveTab] = useState('players');
+  // Phase 3: 分组相关状态
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [groupingTeams, setGroupingTeams] = useState<Team[]>([]);
   const [undoStack, setUndoStack] = useState<Team[][]>([]);
-
-  // Tab 配置
-  const tabs = [
-    { id: 'players', label: '球员管理', icon: '👥' },
-    { id: 'grouping', label: '分组', icon: '🎯' },
-    { id: 'games', label: '比赛记录', icon: '📊' },
-  ];
 
   // 加载球员数据（从 Supabase）
   useEffect(() => {
@@ -160,7 +155,7 @@ function App() {
       const importedPlayers = await Storage.importPlayers(file);
       setPlayers([...players, ...importedPlayers]);
       alert(`成功导入 ${importedPlayers.length} 名球员`);
-    } catch (error) {
+    } catch {
       alert('导入失败，请确保文件格式正确');
     }
   };
@@ -226,7 +221,7 @@ function App() {
       console.error('导入失败:', error);
       throw error;
     }
-  }, [loadPlayers]);
+  }, []);
 
   // 新增：打开导入弹窗
   const handleOpenImportPlayers = useCallback(() => {
@@ -250,13 +245,6 @@ function App() {
     setIsDetailOpen(false);
     // 这里可以打开编辑弹窗
     toastInfo('编辑功能开发中...');
-  }, []);
-
-  // 新增：查看球员详情（目前未连接到UI，保留以备后用）
-  // @ts-ignore - 功能保留以备后用
-  const _unusedOpenPlayerDetail = useCallback((player: Player) => {
-    setSelectedPlayer(player);
-    setIsDetailOpen(true);
   }, []);
 
   // Phase 3: 新的分组功能
@@ -338,435 +326,424 @@ function App() {
   );
 
   return (
-    <div className="min-h-screen bg-background pt-12">
-      <ShellBar 
-        onOpenImportPlayers={handleOpenImportPlayers}
-        onOpenImportGames={handleOpenImportGames}
-        onOpenExport={handleExportData}
-      />
-      
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        {/* 加载状态 */}
-        {loading && (
-          <Card className="mb-6">
-            <CardContent className="py-8 text-center">
-              <div className="flex items-center justify-center gap-3">
-                <Skeleton className="h-5 w-5 rounded-full animate-spin" />
-                <p className="text-muted-foreground">⏳ 加载球员数据中...</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+    <Router>
+      <div className="min-h-screen bg-background pt-12">
+        <ShellBar 
+          onOpenImportPlayers={handleOpenImportPlayers}
+          onOpenImportGames={handleOpenImportGames}
+          onOpenExport={handleExportData}
+        />
+        
+        <main className="max-w-7xl mx-auto px-4 py-6">
+          {/* 加载状态 */}
+          {loading && (
+            <Card className="mb-6">
+              <CardContent className="py-8 text-center">
+                <div className="flex items-center justify-center gap-3">
+                  <Skeleton className="h-5 w-5 rounded-full animate-spin" />
+                  <p className="text-muted-foreground">⏳ 加载球员数据中...</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-        {/* 错误提示 */}
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertDescription className="flex items-center justify-between">
-              <span>❌ {error}</span>
-              <Button variant="outline" size="sm" onClick={loadPlayers}>
-                重试
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Tab 导航 */}
-        {!loading && !error && (
-          <div className="mb-6">
-            <TabNavigation 
-              tabs={tabs}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              persistKey="player-grouping-active-tab"
-            />
-          </div>
-        )}
-
-        {/* Tab 1: 球员管理 */}
-        {activeTab === 'players' && !loading && (
-          <>
-            {/* Quick Actions */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-              {/* 搜索和筛选 */}
-              <div className="flex items-center gap-3">
-                <Input 
-                  placeholder="搜索球员..." 
-                  className="w-64"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  data-testid="search-input"
-                />
-              </div>
-              
-              {/* 操作按钮 */}
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExport}
-                  data-testid="export-button"
-                >
-                  导出
+          {/* 错误提示 */}
+          {error && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertDescription className="flex items-center justify-between">
+                <span>❌ {error}</span>
+                <Button variant="outline" size="sm" onClick={loadPlayers}>
+                  重试
                 </Button>
-                <Button 
-                  variant="outline"
-                  size="sm"
-                  asChild
-                  data-testid="import-button"
-                >
-                  <label className="cursor-pointer">
-                    导入
-                    <input type="file" accept=".json" onChange={handleImport} hidden />
-                  </label>
-                </Button>
-                <Button 
-                  size="sm"
-                  onClick={() => setIsFormOpen(true)}
-                  data-testid="add-player-button"
-                >
-                  添加球员
-                </Button>
-              </div>
-            </div>
-            
-            {/* Player Cards Grid */}
-            {filteredPlayers.length > 0 && (
-              <div 
-                className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6"
-                data-testid="player-grid"
-              >
-                {filteredPlayers.map(player => (
-                  <Card 
-                    key={player.id}
-                    className="hover:shadow-lg transition-shadow bg-card group"
-                    data-testid="player-card"
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-lg">
-                            {player.name[0]}
-                          </div>
-                          <div>
-                            <CardTitle className="text-base">{player.name}</CardTitle>
-                            <Badge 
-                              variant="secondary" 
-                              className="mt-1"
-                              style={{
-                                backgroundColor: `${POSITION_DETAILS[player.position].color}20`,
-                                color: POSITION_DETAILS[player.position].color
-                              }}
-                            >
-                              {POSITION_DETAILS[player.position].icon} {POSITION_DETAILS[player.position].name}
-                            </Badge>
-                          </div>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="h-8 w-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                              data-testid={`player-card-menu-${player.id}`}
-                            >
-                              ⋮
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem 
-                              onClick={() => {
-                                setSelectedPlayer(player);
-                                setIsDetailOpen(true);
-                              }}
-                            >
-                              👁️ 查看详情
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => {
-                                setSelectedPlayer(player);
-                                setIsDetailOpen(true);
-                                // TODO: 添加快速编辑模式
-                                toastInfo('快速编辑功能开发中...');
-                              }}
-                            >
-                              ✏️ 快速编辑
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleDeletePlayer(player.id)}
-                              className="text-destructive"
-                            >
-                              🗑️ 删除
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent>
-                      {/* KPI */}
-                      <div className="flex items-center justify-center mb-4">
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-primary">
-                            {player.skills.overall}
-                          </div>
-                          <div className="text-xs text-muted-foreground">总体能力</div>
-                        </div>
-                      </div>
-                      
-                      {/* 技能条 */}
-                      <div className="space-y-2">
-                        <SkillBar 
-                          label="投篮" 
-                          value={Math.round((player.skills.twoPointShot + player.skills.threePointShot + player.skills.freeThrow) / 3)} 
-                        />
-                        <SkillBar 
-                          label="组织" 
-                          value={Math.round((player.skills.passing + player.skills.ballControl + player.skills.courtVision) / 3)} 
-                        />
-                        <SkillBar 
-                          label="防守" 
-                          value={Math.round((player.skills.perimeterDefense + player.skills.interiorDefense) / 2)} 
-                        />
-                        <SkillBar 
-                          label="篮板" 
-                          value={Math.round((player.skills.offensiveRebound + player.skills.defensiveRebound) / 2)} 
-                        />
-                        <SkillBar 
-                          label="身体素质" 
-                          value={Math.round((player.skills.speed + player.skills.strength + player.skills.stamina + player.skills.vertical) / 4)} 
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
+              </AlertDescription>
+            </Alert>
+          )}
 
-            {/* Empty State */}
-            {filteredPlayers.length === 0 && (
-              <Card className="mb-6">
-                <CardContent className="py-12 text-center">
-                  <p className="text-muted-foreground text-lg">
-                    {searchQuery ? '没有找到匹配的球员' : '暂无球员，请先添加球员'}
-                  </p>
-                  {!searchQuery && (
-                    <Button 
-                      className="mt-4" 
-                      onClick={() => setIsFormOpen(true)}
-                    >
-                      添加第一名球员
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+          {/* Routes */}
+          <Routes>
+            {/* Default route: Chat */}
+            <Route path="/" element={<ChatView />} />
 
-            {/* Legacy Grouping Section (保留向后兼容) */}
-            {players.length > 0 && (
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>快速分组（简易版）</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="teamCount">团队数量：</Label>
-                      <Input
-                        id="teamCount"
-                        type="number"
-                        min="2"
-                        max={Math.floor(players.length / 2)}
-                        value={teamCount}
-                        onChange={(e) => setTeamCount(parseInt(e.target.value))}
-                        className="w-20"
+            {/* Player Management */}
+            <Route path="/players" element={
+              !loading && !error ? (
+                <>
+                  {/* Quick Actions */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                    {/* 搜索和筛选 */}
+                    <div className="flex items-center gap-3">
+                      <Input 
+                        placeholder="搜索球员..." 
+                        className="w-64"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        data-testid="search-input"
                       />
                     </div>
-                    <Button 
-                      onClick={handleGrouping}
-                      data-testid="grouping-button"
-                    >
-                      开始分组
-                    </Button>
-                    {showGrouping && (
-                      <Button variant="outline" onClick={handleRegroup}>
-                        重新分组
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Legacy Grouping Results */}
-            {showGrouping && teams.length > 0 && (
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>分组结果</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
-                    {teams.map((team) => (
-                      <Card 
-                        key={team.id}
-                        className="bg-gradient-to-br from-primary to-accent text-white shadow-lg"
+                    
+                    {/* 操作按钮 */}
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExport}
+                        data-testid="export-button"
                       >
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-center mb-4 pb-2 border-b border-white/30">
-                            <h3 className="font-semibold text-lg">{team.name}</h3>
-                            <Badge className="bg-white/20 text-white border-0">
-                              总能力: {team.totalSkill}
-                            </Badge>
-                          </div>
-                          <div className="space-y-2">
-                            {team.players.map((player) => (
-                              <div 
-                                key={player.id}
-                                className="flex justify-between items-center bg-white/15 rounded-md px-3 py-2 text-sm"
-                              >
-                                <span className="font-medium">{player.name}</span>
-                                <div className="flex items-center gap-2">
-                                  <span 
-                                    className="bg-white/30 px-2 py-0.5 rounded-full text-xs"
-                                    style={{ color: POSITION_DETAILS[player.position].color }}
+                        导出
+                      </Button>
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        data-testid="import-button"
+                      >
+                        <label className="cursor-pointer">
+                          导入
+                          <input type="file" accept=".json" onChange={handleImport} hidden />
+                        </label>
+                      </Button>
+                      <Button 
+                        size="sm"
+                        onClick={() => setIsFormOpen(true)}
+                        data-testid="add-player-button"
+                      >
+                        添加球员
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Player Cards Grid */}
+                  {filteredPlayers.length > 0 && (
+                    <div 
+                      className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6"
+                      data-testid="player-grid"
+                    >
+                      {filteredPlayers.map(player => (
+                        <Card 
+                          key={player.id}
+                          className="hover:shadow-lg transition-shadow bg-card group"
+                          data-testid="player-card"
+                        >
+                          <CardHeader className="pb-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-lg">
+                                  {player.name[0]}
+                                </div>
+                                <div>
+                                  <CardTitle className="text-base">{player.name}</CardTitle>
+                                  <Badge 
+                                    variant="secondary" 
+                                    className="mt-1"
+                                    style={{
+                                      backgroundColor: `${POSITION_DETAILS[player.position].color}20`,
+                                      color: POSITION_DETAILS[player.position].color
+                                    }}
                                   >
                                     {POSITION_DETAILS[player.position].icon} {POSITION_DETAILS[player.position].name}
-                                  </span>
-                                  <span className="font-semibold">{player.skills.overall}</span>
+                                  </Badge>
                                 </div>
                               </div>
-                            ))}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    className="h-8 w-8 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                                    data-testid={`player-card-menu-${player.id}`}
+                                  >
+                                    ⋮
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem 
+                                    onClick={() => {
+                                      setSelectedPlayer(player);
+                                      setIsDetailOpen(true);
+                                    }}
+                                  >
+                                    👁️ 查看详情
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => {
+                                      setSelectedPlayer(player);
+                                      setIsDetailOpen(true);
+                                      // TODO: 添加快速编辑模式
+                                      toastInfo('快速编辑功能开发中...');
+                                    }}
+                                  >
+                                    ✏️ 快速编辑
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDeletePlayer(player.id)}
+                                    className="text-destructive"
+                                  >
+                                    🗑️ 删除
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          </CardHeader>
+                          
+                          <CardContent>
+                            {/* KPI */}
+                            <div className="flex items-center justify-center mb-4">
+                              <div className="text-center">
+                                <div className="text-3xl font-bold text-primary">
+                                  {player.skills.overall}
+                                </div>
+                                <div className="text-xs text-muted-foreground">总体能力</div>
+                              </div>
+                            </div>
+                            
+                            {/* 技能条 */}
+                            <div className="space-y-2">
+                              <SkillBar 
+                                label="投篮" 
+                                value={Math.round((player.skills.twoPointShot + player.skills.threePointShot + player.skills.freeThrow) / 3)} 
+                              />
+                              <SkillBar 
+                                label="组织" 
+                                value={Math.round((player.skills.passing + player.skills.ballControl + player.skills.courtVision) / 3)} 
+                              />
+                              <SkillBar 
+                                label="防守" 
+                                value={Math.round((player.skills.perimeterDefense + player.skills.interiorDefense) / 2)} 
+                              />
+                              <SkillBar 
+                                label="篮板" 
+                                value={Math.round((player.skills.offensiveRebound + player.skills.defensiveRebound) / 2)} 
+                              />
+                              <SkillBar 
+                                label="身体素质" 
+                                value={Math.round((player.skills.speed + player.skills.strength + player.skills.stamina + player.skills.vertical) / 4)} 
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Empty State */}
+                  {filteredPlayers.length === 0 && (
+                    <Card className="mb-6">
+                      <CardContent className="py-12 text-center">
+                        <p className="text-muted-foreground text-lg">
+                          {searchQuery ? '没有找到匹配的球员' : '暂无球员，请先添加球员'}
+                        </p>
+                        {!searchQuery && (
+                          <Button 
+                            className="mt-4" 
+                            onClick={() => setIsFormOpen(true)}
+                          >
+                            添加第一名球员
+                          </Button>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Legacy Grouping Section (保留向后兼容) */}
+                  {players.length > 0 && (
+                    <Card className="mb-6">
+                      <CardHeader>
+                        <CardTitle>快速分组（简易版）</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex flex-wrap items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor="teamCount">团队数量：</Label>
+                            <Input
+                              id="teamCount"
+                              type="number"
+                              min="2"
+                              max={Math.floor(players.length / 2)}
+                              value={teamCount}
+                              onChange={(e) => setTeamCount(parseInt(e.target.value))}
+                              className="w-20"
+                            />
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                  <div className="text-center bg-muted rounded-lg p-4">
-                    <p className="text-foreground text-lg">
-                      平衡度: <strong className="text-primary">{GroupingAlgorithm.calculateBalance(teams).toFixed(2)}</strong>
-                      <span className="text-sm text-muted-foreground ml-2">(越小越平衡)</span>
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
+                          <Button 
+                            onClick={handleGrouping}
+                            data-testid="grouping-button"
+                          >
+                            开始分组
+                          </Button>
+                          {showGrouping && (
+                            <Button variant="outline" onClick={handleRegroup}>
+                              重新分组
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
-        {/* Tab 2: 分组（新功能） */}
-        {activeTab === 'grouping' && !loading && (
-          <>
-            {/* 分组设置 */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>分组设置</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Label htmlFor="newTeamCount">团队数量：</Label>
-                    <Input
-                      id="newTeamCount"
-                      type="number"
-                      min="2"
-                      max={Math.floor(players.length / 2)}
-                      value={teamCount}
-                      onChange={(e) => setTeamCount(parseInt(e.target.value))}
-                      className="w-20"
-                    />
-                  </div>
-                  <Button 
-                    onClick={handleNewGrouping}
-                    disabled={selectedPlayerIds.length < teamCount}
-                    data-testid="new-grouping-button"
-                  >
-                    🎲 随机分组
-                  </Button>
-                </div>
-                
-                {selectedPlayerIds.length < teamCount && (
-                  <p className="text-sm text-muted-foreground">
-                    请至少选择 {teamCount} 名球员（当前已选 {selectedPlayerIds.length} 名）
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+                  {/* Legacy Grouping Results */}
+                  {showGrouping && teams.length > 0 && (
+                    <Card className="mb-6">
+                      <CardHeader>
+                        <CardTitle>分组结果</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-6">
+                          {teams.map((team) => (
+                            <Card 
+                              key={team.id}
+                              className="bg-gradient-to-br from-primary to-accent text-white shadow-lg"
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex justify-between items-center mb-4 pb-2 border-b border-white/30">
+                                  <h3 className="font-semibold text-lg">{team.name}</h3>
+                                  <Badge className="bg-white/20 text-white border-0">
+                                    总能力: {team.totalSkill}
+                                  </Badge>
+                                </div>
+                                <div className="space-y-2">
+                                  {team.players.map((player) => (
+                                    <div 
+                                      key={player.id}
+                                      className="flex justify-between items-center bg-white/15 rounded-md px-3 py-2 text-sm"
+                                    >
+                                      <span className="font-medium">{player.name}</span>
+                                      <div className="flex items-center gap-2">
+                                        <span 
+                                          className="bg-white/30 px-2 py-0.5 rounded-full text-xs"
+                                          style={{ color: POSITION_DETAILS[player.position].color }}
+                                        >
+                                          {POSITION_DETAILS[player.position].icon} {POSITION_DETAILS[player.position].name}
+                                        </span>
+                                        <span className="font-semibold">{player.skills.overall}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                        <div className="text-center bg-muted rounded-lg p-4">
+                          <p className="text-foreground text-lg">
+                            平衡度: <strong className="text-primary">{GroupingAlgorithm.calculateBalance(teams).toFixed(2)}</strong>
+                            <span className="text-sm text-muted-foreground ml-2">(越小越平衡)</span>
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              ) : null
+            } />
 
-            {/* 球员选择 */}
-            <Card className="mb-6">
-              <CardHeader>
-                <CardTitle>选择参与分组的球员</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PlayerSelection 
-                  players={players}
-                  selectedIds={selectedPlayerIds}
-                  onSelect={setSelectedPlayerIds}
-                  maxSelect={teamCount * 10} // 限制最多选择
-                />
-              </CardContent>
-            </Card>
+            {/* Grouping Tool */}
+            <Route path="/grouping" element={
+              !loading && !error ? (
+                <>
+                  {/* 分组设置 */}
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle>分组设置</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="newTeamCount">团队数量：</Label>
+                          <Input
+                            id="newTeamCount"
+                            type="number"
+                            min="2"
+                            max={Math.floor(players.length / 2)}
+                            value={teamCount}
+                            onChange={(e) => setTeamCount(parseInt(e.target.value))}
+                            className="w-20"
+                          />
+                        </div>
+                        <Button 
+                          onClick={handleNewGrouping}
+                          disabled={selectedPlayerIds.length < teamCount}
+                          data-testid="new-grouping-button"
+                        >
+                          🎲 随机分组
+                        </Button>
+                      </div>
+                      
+                      {selectedPlayerIds.length < teamCount && (
+                        <p className="text-sm text-muted-foreground">
+                          请至少选择 {teamCount} 名球员（当前已选 {selectedPlayerIds.length} 名）
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
 
-            {/* 拖拽分组结果 */}
-            {groupingTeams.length > 0 && (
-              <Card className="mb-6">
-                <CardHeader>
-                  <CardTitle>分组结果（可拖拽调整）</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DragDropGrouping 
-                    teams={groupingTeams}
-                    balance={100 - groupingBalance} // 转换为百分比（越高越好）
-                    onPlayerMove={handlePlayerMove}
-                    onUndo={handleUndo}
-                    canUndo={undoStack.length > 0}
-                  />
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
+                  {/* 球员选择 */}
+                  <Card className="mb-6">
+                    <CardHeader>
+                      <CardTitle>选择参与分组的球员</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <PlayerSelection 
+                        players={players}
+                        selectedIds={selectedPlayerIds}
+                        onSelect={setSelectedPlayerIds}
+                        maxSelect={teamCount * 10} // 限制最多选择
+                      />
+                    </CardContent>
+                  </Card>
 
-        {/* Tab 3: 比赛记录（占位） */}
-        {activeTab === 'games' && !loading && (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground text-lg">
-                📊 比赛记录功能开发中...
-              </p>
-              <p className="text-sm text-muted-foreground mt-2">
-                敬请期待
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </main>
-      
-      {/* Dialog Form */}
-      <PlayerFormDialog 
-        open={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        onSubmit={handleAddPlayer}
-      />
+                  {/* 拖拽分组结果 */}
+                  {groupingTeams.length > 0 && (
+                    <Card className="mb-6">
+                      <CardHeader>
+                        <CardTitle>分组结果（可拖拽调整）</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <DragDropGrouping 
+                          teams={groupingTeams}
+                          balance={100 - groupingBalance} // 转换为百分比（越高越好）
+                          onPlayerMove={handlePlayerMove}
+                          onUndo={handleUndo}
+                          canUndo={undoStack.length > 0}
+                        />
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
+              ) : null
+            } />
 
-      {/* Import Wizard */}
-      <ImportWizard
-        open={isImportOpen}
-        onClose={() => setIsImportOpen(false)}
-        type={importType}
-        onImport={handleBatchImport}
-      />
+            {/* Redirect unknown routes to home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        
+        {/* Dialog Form */}
+        <PlayerFormDialog 
+          open={isFormOpen}
+          onClose={() => setIsFormOpen(false)}
+          onSubmit={handleAddPlayer}
+        />
 
-      {/* Player Detail Dialog */}
-      <PlayerDetailDialog
-        open={isDetailOpen}
-        onClose={() => setIsDetailOpen(false)}
-        player={selectedPlayer}
-        onEdit={handleEditFromDetail}
-      />
+        {/* Import Wizard */}
+        <ImportWizard
+          open={isImportOpen}
+          onClose={() => setIsImportOpen(false)}
+          type={importType}
+          onImport={handleBatchImport}
+        />
 
-      {/* Toast Notifications */}
-      <Toaster />
-    </div>
+        {/* Player Detail Dialog */}
+        <PlayerDetailDialog
+          open={isDetailOpen}
+          onClose={() => setIsDetailOpen(false)}
+          player={selectedPlayer}
+          onEdit={handleEditFromDetail}
+        />
+
+        {/* Toast Notifications */}
+        <Toaster />
+      </div>
+    </Router>
   );
 }
 

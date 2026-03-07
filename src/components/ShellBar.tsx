@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback } from "./ui/avatar";
 import {
@@ -7,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import { Database, Upload, FileSpreadsheet, Download } from "lucide-react";
+import { Database, Upload, FileSpreadsheet, Download, Menu, X } from "lucide-react";
 
 interface ShellBarProps {
   onOpenImportPlayers?: () => void;
@@ -20,67 +22,160 @@ export function ShellBar({
   onOpenImportGames, 
   onOpenExport 
 }: ShellBarProps) {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navItems = [
+    { to: '/', label: '聊天', icon: '💬' },
+    { to: '/players', label: '球员管理', icon: '👥' },
+    { to: '/grouping', label: '分组工具', icon: '🎯' },
+  ];
+
   return (
     <header 
-      className="h-12 bg-primary flex items-center px-4 shadow-md fixed top-0 w-full z-50"
+      className="bg-primary shadow-md fixed top-0 w-full z-50"
       data-testid="shell-bar"
     >
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">🏀</span>
-        <h1 className="text-white font-semibold text-lg">篮球球员分组系统</h1>
-      </div>
-      
-      {/* 数据管理菜单 */}
-      <div className="ml-auto flex items-center gap-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className="text-white hover:bg-primary/80"
-              data-testid="data-management-menu"
-            >
-              <Database className="w-4 h-4 mr-2" />
-              数据管理
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem 
-              onClick={onOpenImportPlayers}
-              data-testid="menu-import-players"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              批量导入球员
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={onOpenImportGames}
-              data-testid="menu-import-games"
-            >
-              <FileSpreadsheet className="w-4 h-4 mr-2" />
-              导入比赛数据
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={onOpenExport}
-              data-testid="menu-export"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              导出数据
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      {/* Desktop Header */}
+      <div className="h-12 flex items-center px-4">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🏀</span>
+          <h1 className="text-white font-semibold text-lg hidden sm:block">篮球球员分组系统</h1>
+        </div>
         
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className="text-white hover:bg-primary/80"
-          data-testid="help-button"
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex ml-6 gap-1">
+          {navItems.map(item => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) =>
+                `px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-white/20 text-white'
+                    : 'text-white/80 hover:bg-white/10 hover:text-white'
+                }`
+              }
+            >
+              {item.icon} {item.label}
+            </NavLink>
+          ))}
+        </nav>
+        
+        {/* Mobile Menu Toggle */}
+        <button
+          className="md:hidden ml-auto text-white p-2"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          data-testid="mobile-menu-toggle"
         >
-          帮助
-        </Button>
-        <Avatar className="w-8 h-8">
-          <AvatarFallback className="bg-white/20 text-white text-sm">J</AvatarFallback>
-        </Avatar>
+          {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+        
+        {/* 数据管理菜单 */}
+        <div className="hidden md:flex ml-auto items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className="text-white hover:bg-primary/80"
+                data-testid="data-management-menu"
+              >
+                <Database className="w-4 h-4 mr-2" />
+                数据管理
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem 
+                onClick={onOpenImportPlayers}
+                data-testid="menu-import-players"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                批量导入球员
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={onOpenImportGames}
+                data-testid="menu-import-games"
+              >
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                导入比赛数据
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={onOpenExport}
+                data-testid="menu-export"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                导出数据
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className="text-white hover:bg-primary/80"
+            data-testid="help-button"
+          >
+            帮助
+          </Button>
+          <Avatar className="w-8 h-8">
+            <AvatarFallback className="bg-white/20 text-white text-sm">J</AvatarFallback>
+          </Avatar>
+        </div>
       </div>
+
+      {/* Mobile Navigation */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-primary/95 border-t border-white/10">
+          <nav className="px-4 py-2 space-y-1">
+            {navItems.map(item => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={({ isActive }) =>
+                  `block px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-white/20 text-white'
+                      : 'text-white/80 hover:bg-white/10 hover:text-white'
+                  }`
+                }
+              >
+                {item.icon} {item.label}
+              </NavLink>
+            ))}
+          </nav>
+          
+          {/* Mobile Data Management */}
+          <div className="px-4 py-2 border-t border-white/10">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-white hover:bg-primary/80 justify-start"
+                >
+                  <Database className="w-4 h-4 mr-2" />
+                  数据管理
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={onOpenImportPlayers}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  批量导入球员
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={onOpenImportGames}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  导入比赛数据
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onOpenExport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  导出数据
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
