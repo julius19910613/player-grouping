@@ -75,15 +75,32 @@ git push origin main
 1. 访问 [vercel.com](https://vercel.com)
 2. 导入 GitHub 仓库
 3. Vercel 会自动读取 `vercel.json` 配置
-4. 构建和部署自动完成
+4. **关键步骤：配置环境变量**（见下方）
+5. 构建和部署自动完成
 
-**环境变量配置**：
-在 Vercel 项目设置 → Environment Variables 中添加：
-```bash
-VITE_BASE_URL=/
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-```
+**环境变量配置（必需）**：
+
+在 Vercel 项目设置中添加环境变量：
+
+1. 进入你的 Vercel 项目
+2. 点击 **Settings** → **Environment Variables**
+3. 添加以下变量：
+
+| 环境变量 | 值 | 说明 |
+|-----------|-----|------|
+| `VITE_BASE_URL` | `/` | 部署基础路径 |
+| `VITE_SUPABASE_URL` | `https://your-project.supabase.co` | Supabase 项目 URL |
+| `VITE_SUPABASE_ANON_KEY` | `eyJhbGc...` | Supabase 匿名密钥 |
+
+**重要提示**：
+- ⚠️ **环境变量名必须以 `VITE_` 开头**，否则 Vite 不会注入到客户端代码
+- 🔑 Supabase 配置获取方式：
+  1. 访问 [Supabase Dashboard](https://supabase.com/dashboard)
+  2. 选择你的项目
+  3. 进入 Settings → API
+  4. 复制 **Project URL** 和 **anon public key**
+- ✅ 添加环境变量后，需要**重新部署**项目才能生效
+- 🔄 每次修改环境变量后，Vercel 会自动触发重新构建
 
 ### 方法 3: 手动部署到 GitHub Pages
 
@@ -307,6 +324,79 @@ VITE_BASE_URL=/player-grouping/ npm run build
 # 检查生成的 HTML 资源路径
 grep -o 'href="[^"]*"' dist/index.html
 ```
+
+### 6. Vercel 部署 Supabase 401 Unauthorized 错误
+
+**症状**：
+- Vercel 部署后，应用返回 401 错误
+- 浏览器控制台显示 Supabase 请求失败
+- 网络请求 URL 显示 `api_key=undefined`
+
+**原因**：
+1. **环境变量未在 Vercel 中配置** - `VITE_SUPABASE_URL` 和 `VITE_SUPABASE_ANON_KEY` 未设置
+2. **环境变量名称错误** - 缺少 `VITE_` 前缀
+3. **Vercel 项目设置中的配置未生效** - 需要重新部署
+
+**解决方案步骤**：
+
+#### 步骤 1：检查 Vercel 环境变量
+
+1. 登录 [vercel.com](https://vercel.com)
+2. 选择你的项目
+3. 进入 **Settings** → **Environment Variables**
+4. 确认以下变量已添加：
+
+| 环境变量 | 值 | 必需 |
+|-----------|-----|------|
+| `VITE_SUPABASE_URL` | `https://saeplsevqechdnlkwjyz.supabase.co` | ✅ |
+| `VITE_SUPABASE_ANON_KEY` | `eyJhbGc...`（你的 key） | ✅ |
+| `VITE_BASE_URL` | `/` | ✅ |
+
+#### 步骤 2：重新部署项目
+
+添加环境变量后，Vercel 会自动触发重新部署，或手动触发：
+
+1. 进入 **Deployments** 标签
+2. 点击 **Redeploy** 按钮
+
+#### 步骤 3：验证配置
+
+部署完成后，打开浏览器控制台，应该看到：
+
+✅ 成功的日志：
+```
+🔍 Supabase 配置状态：{ urlConfigured: true, keyConfigured: true, ... }
+```
+
+❌ 如果看到：
+```
+⚠️ Supabase 配置缺失...
+```
+
+则说明环境变量未正确配置。
+
+#### 调试步骤
+
+如果问题仍然存在：
+
+1. **检查浏览器网络请求**：
+   - 打开开发者工具 → Network 标签
+   - 搜索 Supabase 相关请求
+   - 检查请求头中是否包含 API key
+
+2. **检查构建输出**：
+   ```bash
+   # 本地测试构建（模拟 Vercel）
+   VITE_BASE_URL=/ VITE_SUPABASE_URL=your-url VITE_SUPABASE_ANON_KEY=your-key npm run build
+
+   # 检查生成的 JS 文件是否包含配置
+   grep -o "supabase" dist/assets/index.js
+   ```
+
+3. **检查 Supabase 权限**：
+   - 确认 anon key 有正确的权限（读/写）
+   - 检查 Supabase 项目 RLS 策略设置
+   - 确认 API URL 正确
 
 ---
 

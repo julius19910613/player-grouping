@@ -3,10 +3,15 @@
  *
  * 使用环境变量配置初始化 Supabase 客户端
  * 支持游客模式（匿名用户）
- * 
+ *
  * 配置说明：
- * - 在 .env.local 中设置 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY
- * - 参考 .env.example 获取配置示例
+ * - 本地开发：在 .env.local 中设置 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY
+ * - Vercel 部署：在 Vercel 项目设置中添加环境变量
+ * - GitHub Pages：在 GitHub Actions secrets 中配置
+ *
+ * 环境变量示例：
+ * VITE_SUPABASE_URL=https://your-project.supabase.co
+ * VITE_SUPABASE_ANON_KEY=eyJhbGc...
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -18,9 +23,21 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | und
 // 验证配置
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
   console.warn(
-    '⚠️ Supabase 配置缺失。请在 .env.local 中设置 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_KEY。\n' +
+    '⚠️ Supabase 配置缺失。请在对应平台的环境变量中设置：\n' +
+    '- 本地开发：.env.local\n' +
+    '- Vercel：项目设置 → Environment Variables\n' +
+    '- GitHub Pages：Repository Settings → Secrets\n\n' +
     '应用将降级使用 SQLite 本地存储。'
   );
+}
+
+// 调试：在开发环境显示配置状态
+if (import.meta.env.DEV) {
+  console.log('🔍 Supabase 配置状态：', {
+    urlConfigured: !!SUPABASE_URL,
+    keyConfigured: !!SUPABASE_ANON_KEY,
+    urlPrefix: SUPABASE_URL ? SUPABASE_URL.substring(0, 20) + '...' : '未配置',
+  });
 }
 
 // 创建 Supabase 客户端实例（如果配置可用）
@@ -32,6 +49,13 @@ const _supabase = SUPABASE_URL && SUPABASE_ANON_KEY
         detectSessionInUrl: false,
         persistSession: false,
       },
+      // 全局错误处理
+      global: {
+        headers: {
+          // 添加请求标识
+          'X-Client-Info': 'player-grouping-v1',
+        },
+      },
     })
   : null;
 
@@ -41,7 +65,8 @@ export const supabase = _supabase as SupabaseClient;
 // 导出配置供其他模块使用
 export const supabaseConfig = {
   url: SUPABASE_URL || '',
-  anonKey: SUPABASE_ANON_KEY || '',
+  anonKey: SUPABASE_ANON_KEY ? '***' + SUPABASE_ANON_KEY.slice(-4) : '', // 隐匿 API key
+  isConfigured: !!(SUPABASE_URL && SUPABASE_ANON_KEY),
 };
 
 // 检查 Supabase 是否可用
