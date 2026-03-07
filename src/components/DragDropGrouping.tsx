@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Team, Player } from '../types';
+import { useState } from 'react';
+import type { Team, Player } from '../types';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -69,13 +69,6 @@ export function DragDropGrouping({
     
     setDraggedPlayer(null);
     setDragOverTeamId(null);
-  };
-
-  // 计算平衡度颜色
-  const getBalanceColor = (balance: number) => {
-    if (balance >= 90) return 'text-green-600';
-    if (balance >= 70) return 'text-yellow-600';
-    return 'text-red-600';
   };
 
   // 计算平衡度状态

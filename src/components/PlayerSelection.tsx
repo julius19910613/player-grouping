@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Player } from '../types';
+import { useState, useMemo } from 'react';
+import type { Player } from '../types';
 import { Checkbox } from './ui/checkbox';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -37,7 +37,6 @@ export function PlayerSelection({
 
   // 全选/取消全选
   const allSelected = selectedIds.length === players.length;
-  const someSelected = selectedIds.length > 0 && selectedIds.length < players.length;
 
   const handleSelectAll = () => {
     if (allSelected) {
@@ -154,9 +153,9 @@ export function PlayerSelection({
                 )}
               >
                 <Checkbox
-                  checked={isSelected}
+                  checked={Boolean(isSelected)}
                   onCheckedChange={() => !isDisabled && handleTogglePlayer(player.id)}
-                  disabled={isDisabled}
+                  disabled={isDisabled as boolean}
                   id={`player-${player.id}`}
                 />
                 <Label

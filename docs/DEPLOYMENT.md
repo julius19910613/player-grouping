@@ -35,27 +35,80 @@ npm run preview
 
 ## 🚀 部署步骤
 
-### 方法 1: 自动部署到 GitHub Pages
+本项目同时支持 **GitHub Pages** 和 **Vercel** 部署，通过环境变量自动配置 base 路径。
+
+### 环境变量配置说明
+
+| 平台 | VITE_BASE_URL | 访问地址 |
+|------|----------------|----------|
+| GitHub Pages | `/player-grouping/` | `https://julius19910613.github.io/player-grouping/` |
+| Vercel | `/` | `https://your-project.vercel.app/` |
+| 本地开发 | 不设置 | `http://localhost:5173/` |
+
+### 自动检测机制
+
+`vite.config.ts` 会按优先级自动设置 `base` 路径：
+
+1. **VITE_BASE_URL** 环境变量（最高优先级）
+2. **CF_PAGES** 环境变量（Cloudflare Pages）
+3. **VERCEL** 环境变量（Vercel）
+4. 生产模式默认：`/player-grouping/`（GitHub Pages 默认）
+5. 其他情况：`/`（开发环境）
+
+### 方法 1: 自动部署到 GitHub Pages（推荐）
+
+项目已配置 GitHub Actions，推送到 `main` 分支会自动部署。
 
 ```bash
-# 1. 构建并部署
-npm run deploy
-
-# 2. 等待 1-2 分钟
-# 3. 访问 https://julius19910613.github.io/player-grouping
+# 自动部署（推送代码即可）
+git push origin main
 ```
 
-### 方法 2: 手动部署
+**GitHub Actions 配置**：`.github/workflows/deploy.yml`
+- 自动设置 `VITE_BASE_URL=/player-grouping/`
+- 支持 Supabase 环境变量配置
+- 自动构建和部署到 GitHub Pages
+
+### 方法 2: Vercel 部署
+
+**首次部署**：
+1. 访问 [vercel.com](https://vercel.com)
+2. 导入 GitHub 仓库
+3. Vercel 会自动读取 `vercel.json` 配置
+4. 构建和部署自动完成
+
+**环境变量配置**：
+在 Vercel 项目设置 → Environment Variables 中添加：
+```bash
+VITE_BASE_URL=/
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### 方法 3: 手动部署到 GitHub Pages
 
 ```bash
 # 1. 构建
 npm run build
 
 # 2. 部署到 GitHub Pages
-npx gh-pages -d dist
+npm run deploy
 
-# 或者使用其他托管服务
-# dist/ 目录包含了所有需要部署的文件
+# 等待 1-2 分钟后访问
+# https://julius19910613.github.io/player-grouping
+```
+
+### 方法 4: 手动部署到 Vercel CLI
+
+```bash
+# 1. 安装 Vercel CLI
+npm i -g vercel
+
+# 2. 登录
+vercel login
+
+# 3. 部署
+vercel --prod
 ```
 
 ---
@@ -67,12 +120,26 @@ npx gh-pages -d dist
 
 ### 2. 检查功能
 - [ ] 应用可以正常加载
+- [ ] 资源路径正确（无 404 错误）
 - [ ] sql.js WASM 文件加载成功
 - [ ] 可以添加球员
 - [ ] 可以编辑球员
 - [ ] 可以删除球员
 - [ ] 数据持久化（刷新后数据保留）
 - [ ] 旧数据自动迁移（如果有）
+- [ ] Supabase 连接正常（如果配置）
+
+### 3. 平台特定检查
+
+**GitHub Pages**：
+- [ ] 资源路径使用 `/player-grouping/` 前缀
+- [ ] `https://julius19910613.github.io/player-grouping/` 可访问
+- [ ] 页面链接点击正常工作
+
+**Vercel**：
+- [ ] 资源路径使用 `/` 根路径
+- [ ] `https://your-project.vercel.app/` 可访问
+- [ ] 所有静态资源正常加载
 
 ### 3. 检查控制台
 打开浏览器开发者工具，确认：
@@ -204,16 +271,41 @@ console.log(status);
 
 **检查**:
 1. 打开开发者工具查看控制台错误
-2. 检查 `vite.config.ts` 的 `base` 配置
-3. 确认所有资源路径正确
+2. 检查资源加载状态（404 错误）
+3. 检查 `vite.config.ts` 的 `base` 配置
+4. 确认所有资源路径正确
 
 **解决方案**:
 ```typescript
-// vite.config.ts
-export default defineConfig({
-  plugins: [react()],
-  base: '/player-grouping/', // 确认这个路径正确
-})
+// vite.config.ts - 已自动配置
+// 本地开发使用: /
+// GitHub Pages 使用: /player-grouping/
+// Vercel 使用: /
+```
+
+### 5. 跨平台部署资源路径错误
+
+**症状**：
+- GitHub Pages 部署到 Vercel 后资源 404
+- Vercel 部署到 GitHub Pages 后资源 404
+- 页面可以访问，但样式和脚本加载失败
+
+**原因**：base 路径配置与部署平台不匹配
+
+**解决方案**：
+- **Vercel**：确保环境变量 `VITE_BASE_URL=/` 已设置
+- **GitHub Pages**：确保 GitHub Actions 设置了 `VITE_BASE_URL=/player-grouping/`
+- **手动构建**：使用环境变量测试构建
+
+```bash
+# 测试 Vercel 构建
+VITE_BASE_URL=/ npm run build
+
+# 测试 GitHub Pages 构建
+VITE_BASE_URL=/player-grouping/ npm run build
+
+# 检查生成的 HTML 资源路径
+grep -o 'href="[^"]*"' dist/index.html
 ```
 
 ---
