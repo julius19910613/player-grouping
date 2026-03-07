@@ -141,3 +141,115 @@ export class GroupingAlgorithm {
     return Math.sqrt(variance);
   }
 }
+
+/**
+ * 在队伍间移动球员
+ */
+export function movePlayerBetweenTeams(
+  teams: Team[],
+  playerId: string,
+  fromTeamId: string,
+  toTeamId: string
+): Team[] {
+  // 如果源队伍和目标队伍相同，直接返回
+  if (fromTeamId === toTeamId) {
+    return teams.map(team => ({ ...team, players: [...team.players] }));
+  }
+
+  // 找到球员和队伍
+  let player: Player | undefined;
+  let fromTeamIndex = -1;
+  let toTeamIndex = -1;
+
+  for (let i = 0; i < teams.length; i++) {
+    if (teams[i].id === fromTeamId) {
+      fromTeamIndex = i;
+      player = teams[i].players.find(p => p.id === playerId);
+    }
+    if (teams[i].id === toTeamId) {
+      toTeamIndex = i;
+    }
+  }
+
+  // 如果找不到球员或队伍，返回原数组
+  if (!player || fromTeamIndex === -1 || toTeamIndex === -1) {
+    return teams.map(team => ({ ...team, players: [...team.players] }));
+  }
+
+  // 创建新的队伍数组
+  const newTeams = teams.map(team => ({
+    ...team,
+    players: [...team.players],
+    totalSkill: team.totalSkill
+  }));
+
+  // 从源队伍移除球员
+  newTeams[fromTeamIndex].players = newTeams[fromTeamIndex].players.filter(
+    p => p.id !== playerId
+  );
+  newTeams[fromTeamIndex].totalSkill = recalculateTeamSkill(newTeams[fromTeamIndex]);
+
+  // 添加到目标队伍
+  newTeams[toTeamIndex].players.push(player);
+  newTeams[toTeamIndex].totalSkill = recalculateTeamSkill(newTeams[toTeamIndex]);
+
+  return newTeams;
+}
+
+/**
+ * 重新计算单个队伍的总能力
+ */
+export function recalculateTeamSkill(team: Team): number {
+  return team.players.reduce((sum, player) => sum + player.skills.overall, 0);
+}
+
+/**
+ * 计算所有队伍的平衡度（标准差）
+ * 返回值越小越平衡
+ */
+export function calculateBalance(teams: Team[]): number {
+  if (teams.length === 0) return 0;
+
+  const skills = teams.map((team) => team.totalSkill);
+  const avg = skills.reduce((sum, skill) => sum + skill, 0) / skills.length;
+
+  if (avg === 0) return 0;
+
+  const variance =
+    skills.reduce((sum, skill) => sum + Math.pow(skill - avg, 2), 0) /
+    skills.length;
+  return Math.sqrt(variance);
+}
+
+/**
+ * 预览移动后的平衡度（不实际移动）
+ */
+export function previewBalanceAfterMove(
+  teams: Team[],
+  playerId: string,
+  toTeamId: string
+): number {
+  // 找到球员当前所在队伍
+  let fromTeamId: string | undefined;
+
+  for (const team of teams) {
+    if (team.players.some(p => p.id === playerId)) {
+      fromTeamId = team.id;
+      break;
+    }
+  }
+
+  // 如果找不到球员，返回当前平衡度
+  if (!fromTeamId) {
+    return calculateBalance(teams);
+  }
+
+  // 如果目标队伍就是当前队伍，返回当前平衡度
+  if (fromTeamId === toTeamId) {
+    return calculateBalance(teams);
+  }
+
+  // 模拟移动并计算平衡度
+  const newTeams = movePlayerBetweenTeams(teams, playerId, fromTeamId, toTeamId);
+  return calculateBalance(newTeams);
+}

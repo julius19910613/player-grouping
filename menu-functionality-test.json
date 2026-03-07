@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-03-06T11:39:17.479Z",
+  "phase": "Menu Functionality Test",
+  "url": "https://julius19910613.github.io/player-grouping/",
+  "mobile_viewport": "375x667",
+  "menu_opens": true,
+  "detail_dialog_opens": true,
+  "console_errors": [],
+  "all_passed": true
+}
