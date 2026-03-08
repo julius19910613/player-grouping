@@ -58,9 +58,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Rate limiting
   const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown') as string;
-  const count = rateLimit.get(ip) || 0;
+  const rateLimitCount = rateLimit.get(ip) || 0;
   
-  if (count >= 10) {
+  if (rateLimitCount >= 10) {
     return res.status(429).json({
       error: 'Too many requests',
       message: '您的请求过于频繁，请 1 分钟后再试',
@@ -68,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
   
-  rateLimit.set(ip, count + 1);
+  rateLimit.set(ip, rateLimitCount + 1);
 
   // Get query parameters
   const query = req.method === 'GET' 
@@ -164,7 +164,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    if (error.message.includes('429')) {
+    if (error && error instanceof Error && error.message.includes('429')) {
       return res.status(429).json({
         error: 'Rate limit exceeded',
         message: '搜索频率超限，请稍后重试'

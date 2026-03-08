@@ -20,7 +20,7 @@ const tools: FunctionDeclaration[] = [
         }
       },
       required: ["player_name"]
-    }
+    } as any
   },
   {
     name: "search_web",
@@ -34,7 +34,7 @@ const tools: FunctionDeclaration[] = [
         }
       },
       required: ["query"]
-    }
+    } as any
   },
   {
     name: "calculate_grouping",
@@ -56,7 +56,7 @@ const tools: FunctionDeclaration[] = [
         }
       },
       required: ["players"]
-    }
+    } as any
   }
 ];
 
@@ -253,7 +253,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Handle API errors
-    if (error.status === 429) {
+    if (error && typeof error === 'object' && 'status' in error && (error as any).status === 429) {
       return res.status(429).json({
         error: 'Rate limit exceeded',
         message: 'API 调用频率超限，请稍后重试'
