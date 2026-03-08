@@ -6,17 +6,17 @@ import { LRUCache } from 'lru-cache';
 const tools: FunctionDeclaration[] = [
   {
     name: "get_player_stats",
-    description: "获取球员统计数据，包括比赛场次、得分、篮板、助攻等信息",
+    description: "查询私有数据库中的球员信息（用户录入的球员，不包含公开球员数据）。可以查询球员的技能等级、位置、所属球队等信息",
     parameters: {
       type: "object",
       properties: {
         player_name: {
           type: "string",
-          description: "球员姓名"
+          description: "球员姓名（支持模糊搜索）"
         },
         season: {
           type: "string",
-          description: "赛季，例如 2023-24"
+          description: "赛季（可选），例如 2023-24"
         }
       },
       required: ["player_name"]
@@ -340,47 +340,51 @@ async function executeToolCall(
 }
 
 /**
- * Get player stats (mock implementation)
+ * Get player stats from Supabase database
  */
 async function getPlayerStats(playerName: string, season?: string): Promise<any> {
-  const mockStats: Record<string, any> = {
-    '詹姆斯': {
-      name: '勒布朗·詹姆斯',
-      season: season || '2023-24',
-      games: 71,
-      pointsPerGame: 25.7,
-      reboundsPerGame: 7.3,
-      assistsPerGame: 8.3,
-      team: '洛杉矶湖人',
-      position: '小前锋',
-    },
-    '库里': {
-      name: '斯蒂芬·库里',
-      season: season || '2023-24',
-      games: 74,
-      pointsPerGame: 26.4,
-      reboundsPerGame: 4.5,
-      assistsPerGame: 5.1,
-      team: '金州勇士',
-      position: '控球后卫',
-    },
-  };
-
-  const stats = mockStats[playerName];
-
-  if (!stats) {
+  // Import database service
+  const { queryPlayersFromDatabase } = await import('./database-service');
+  
+  // Query from Supabase
+  const result = await queryPlayersFromDatabase(playerName);
+  
+  if (!result.success) {
     return {
-      success: true,
-      data: {
-        message: `暂未找到球员 "${playerName}" 的统计数据`,
-        suggestion: '可以尝试搜索最新信息',
-      },
+      success: false,
+      error: result.error || '查询失败',
+      message: '无法获取球员数据，请稍后重试'
     };
   }
 
+  const { data } = result;
+  
+  if (data.count === 0) {
+    return {
+      success: true,
+      data: {
+        message: data.message,
+        suggestion: '请确认球员姓名是否正确，或先录入球员数据',
+        availableCommands: ['/players - 查看所有球员', '/help - 查看帮助']
+      }
+    };
+  }
+
+  // 返回匹配的球员数据
   return {
     success: true,
-    data: stats,
+    data: {
+      message: data.message,
+      count: data.count,
+      players: data.players.map((player: any) => ({
+        name: player.name,
+        skill_level: player.skill_level,
+        position: player.position,
+        team: player.team,
+        notes: player.notes,
+        created_at: player.created_at
+      }))
+    }
   };
 }
 
