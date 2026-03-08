@@ -343,49 +343,77 @@ async function executeToolCall(
  * Get player stats from Supabase database
  */
 async function getPlayerStats(playerName: string, season?: string): Promise<any> {
-  // Import database service
-  const { queryPlayersFromDatabase } = await import('./database-service');
-  
-  // Query from Supabase
-  const result = await queryPlayersFromDatabase(playerName);
-  
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error || '查询失败',
-      message: '无法获取球员数据，请稍后重试'
-    };
-  }
-
-  const { data } = result;
-  
-  if (data.count === 0) {
+  try {
+    // Import Supabase client
+    const { createClient } = await import('@supabase/supabase-js');
+    
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return {
+        success: false,
+        error: 'Supabase configuration missing',
+        message: '数据库配置缺失'
+      };
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Query players with skills using JOIN
+    const { data: players, error } = await supabase
+      .from('players')
+      .select(`
+        *,
+        player_skills (*)
+      `)
+      .ilike('name', `%${playerName}%`)
+      .limit(10);
+    
+    if (error) {
+      console.error('Supabase query error:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: '查询失败'
+      };
+    }
+    
+    if (!players || players.length === 0) {
+      return {
+        success: true,
+        data: {
+          message: `未找到球员 "${playerName}"`,
+          suggestion: '请确认球员姓名是否正确，或先录入球员数据',
+          availableCommands: ['/players - 查看所有球员', '/help - 查看帮助']
+        }
+      };
+    }
+    
+    // Format player data
+    const formattedPlayers = players.map((player: any) => ({
+      name: player.name,
+      position: player.position,
+      skills: player.player_skills?.[0] || {},
+      created_at: player.created_at
+    }));
+    
     return {
       success: true,
       data: {
-        message: data.message,
-        suggestion: '请确认球员姓名是否正确，或先录入球员数据',
-        availableCommands: ['/players - 查看所有球员', '/help - 查看帮助']
+        message: `找到 ${players.length} 名匹配的球员`,
+        count: players.length,
+        players: formattedPlayers
       }
     };
+  } catch (error) {
+    console.error('getPlayerStats error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      message: '查询球员数据时发生错误'
+    };
   }
-
-  // 返回匹配的球员数据
-  return {
-    success: true,
-    data: {
-      message: data.message,
-      count: data.count,
-      players: data.players.map((player: any) => ({
-        name: player.name,
-        skill_level: player.skill_level,
-        position: player.position,
-        team: player.team,
-        notes: player.notes,
-        created_at: player.created_at
-      }))
-    }
-  };
 }
 
 /**
