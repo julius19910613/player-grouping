@@ -25,10 +25,7 @@
       "runtime": "nodejs20.x"
     }
   },
-  "env": {
-    "GEMINI_API_KEY": "@gemini-api-key",
-    "BRAVE_SEARCH_API_KEY": "@brave-search-api-key"
-  },
+
   "headers": [
     {
       "source": "/assets/(.*)",
