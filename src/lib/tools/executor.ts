@@ -57,7 +57,7 @@ async function getPlayerStats(
   season?: string
 ): Promise<ToolCallResult> {
   // 实际查询由后端处理
-  // 后端通过 api/chat.ts 和 api/database-service.ts 查询 Supabase
+  // 后端通过 api/chat.ts 直接查询 Supabase
   return {
     success: false,
     error: '此工具应由后端 API 调用。请通过 /api/chat 端点进行查询。',
