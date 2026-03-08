@@ -350,6 +350,12 @@ async function getPlayerStats(playerName: string, season?: string): Promise<any>
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
     
+    console.log('[DEBUG] Supabase config:', {
+      hasUrl: !!supabaseUrl,
+      hasKey: !!supabaseKey,
+      url: supabaseUrl
+    });
+    
     if (!supabaseUrl || !supabaseKey) {
       return {
         success: false,
@@ -360,15 +366,19 @@ async function getPlayerStats(playerName: string, season?: string): Promise<any>
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Query players with skills using JOIN
+    // Query players first (simplified query to debug)
     const { data: players, error } = await supabase
       .from('players')
-      .select(`
-        *,
-        player_skills (*)
-      `)
+      .select('*')
       .ilike('name', `%${playerName}%`)
       .limit(10);
+    
+    console.log('[DEBUG] Query result:', {
+      playerName,
+      playersFound: players?.length || 0,
+      error: error?.message,
+      firstPlayer: players?.[0]
+    });
     
     if (error) {
       console.error('Supabase query error:', error);
@@ -381,29 +391,38 @@ async function getPlayerStats(playerName: string, season?: string): Promise<any>
     
     if (!players || players.length === 0) {
       return {
-        success: true,
+        success: false,
         data: {
           message: `未找到球员 "${playerName}"`,
-          suggestion: '请确认球员姓名是否正确，或先录入球员数据',
-          availableCommands: ['/players - 查看所有球员', '/help - 查看帮助']
+          suggestion: '请确认球员姓名是否正确，或先录入球员数据'
         }
       };
     }
     
-    // Format player data
-    const formattedPlayers = players.map((player: any) => ({
-      name: player.name,
-      position: player.position,
-      skills: player.player_skills?.[0] || {},
-      created_at: player.created_at
-    }));
+    // If players found, fetch their skills
+    const playersWithSkills = await Promise.all(
+      players.map(async (player: any) => {
+        const { data: skills } = await supabase
+          .from('player_skills')
+          .select('*')
+          .eq('player_id', player.id)
+          .single();
+        
+        return {
+          name: player.name,
+          position: player.position,
+          skills: skills || {},
+          created_at: player.created_at
+        };
+      })
+    );
     
     return {
       success: true,
       data: {
         message: `找到 ${players.length} 名匹配的球员`,
         count: players.length,
-        players: formattedPlayers
+        players: playersWithSkills
       }
     };
   } catch (error) {
