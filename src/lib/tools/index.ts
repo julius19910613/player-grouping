@@ -11,7 +11,7 @@
 export const tools = [
   {
     name: "get_player_stats",
-    description: "获取球员统计数据，包括比赛场次、得分、篮板、助攻等信息",
+    description: "查询私有数据库中的球员信息（用户录入的球员）。可以查询球员的技能等级、位置、所属球队等信息",
     parameters: {
       type: "object" as const,
       properties: {
@@ -21,7 +21,7 @@ export const tools = [
         },
         season: {
           type: "string" as const,
-          description: "赛季，例如 2023-24"
+          description: "赛季（暂未使用，保留参数以兼容）"
         }
       },
       required: ["player_name"]

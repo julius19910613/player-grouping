@@ -44,6 +44,10 @@ export async function executeToolCall(
 
 /**
  * 获取球员统计数据
+ *
+ * NOTE: 实际的数据查询由后端 API (/api/chat) 处理，通过 Supabase 查询真实数据
+ * 此函数保留用于本地工具调用场景（如直接在前端调用工具）
+ *
  * @param playerName 球员姓名
  * @param season 赛季（可选）
  * @returns 球员统计数据
@@ -52,46 +56,11 @@ async function getPlayerStats(
   playerName: string,
   season?: string
 ): Promise<ToolCallResult> {
-  // 模拟数据（实际应用中可以从 Supabase 读取）
-  const mockStats: Record<string, any> = {
-    '詹姆斯': {
-      name: '勒布朗·詹姆斯',
-      season: season || '2023-24',
-      games: 71,
-      pointsPerGame: 25.7,
-      reboundsPerGame: 7.3,
-      assistsPerGame: 8.3,
-      team: '洛杉矶湖人',
-      position: '小前锋',
-    },
-    '库里': {
-      name: '斯蒂芬·库里',
-      season: season || '2023-24',
-      games: 74,
-      pointsPerGame: 26.4,
-      reboundsPerGame: 4.5,
-      assistsPerGame: 5.1,
-      team: '金州勇士',
-      position: '控球后卫',
-    },
-  };
-
-  // 简单匹配（实际应用中可以用模糊匹配）
-  const stats = mockStats[playerName];
-
-  if (!stats) {
-    return {
-      success: true,
-      data: {
-        message: `暂未找到球员 "${playerName}" 的统计数据`,
-        suggestion: '可以尝试搜索最新信息',
-      },
-    };
-  }
-
+  // 实际查询由后端处理
+  // 后端通过 api/chat.ts 和 api/database-service.ts 查询 Supabase
   return {
-    success: true,
-    data: stats,
+    success: false,
+    error: '此工具应由后端 API 调用。请通过 /api/chat 端点进行查询。',
   };
 }
 
