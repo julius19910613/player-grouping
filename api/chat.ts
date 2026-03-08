@@ -6,25 +6,25 @@ import { LRUCache } from 'lru-cache';
 const tools: FunctionDeclaration[] = [
   {
     name: "get_player_stats",
-    description: "查询私有数据库中的球员信息（用户录入的球员，不包含公开球员数据）。可以查询球员的技能等级、位置、所属球队等信息",
+    description: "【优先使用】查询用户私有数据库中的球员信息。这是用户自己录入的球员（如朋友、队友等），包含技能等级、位置等详细数据。当用户询问某个球员时，应优先使用此工具查询，而不是联网搜索。",
     parameters: {
       type: "object",
       properties: {
         player_name: {
           type: "string",
-          description: "球员姓名（支持模糊搜索）"
+          description: "球员姓名（支持模糊匹配）"
         },
         season: {
           type: "string",
-          description: "赛季（可选），例如 2023-24"
+          description: "赛季（暂未使用，保留参数以兼容）"
         }
       },
       required: ["player_name"]
-    } as any
-  },
+    }
+  } as any,
   {
     name: "search_web",
-    description: "联网搜索最新的篮球相关信息，例如球员新闻、比赛结果、统计数据等",
+    description: "【降级使用】联网搜索公开的篮球信息，例如 NBA 球星、比赛新闻等。只有在私有数据库查询不到时才使用此工具。注意：此工具无法查询用户录入的球员数据。",
     parameters: {
       type: "object",
       properties: {
@@ -34,8 +34,8 @@ const tools: FunctionDeclaration[] = [
         }
       },
       required: ["query"]
-    } as any
-  },
+    }
+  } as any,
   {
     name: "calculate_grouping",
     description: "根据球员技能、位置或随机方式计算球员分组方案",
@@ -56,8 +56,8 @@ const tools: FunctionDeclaration[] = [
         }
       },
       required: ["players"]
-    } as any
-  }
+    }
+  } as any
 ];
 
 // Vercel Function timeout configuration (10s max for Hobby Plan)

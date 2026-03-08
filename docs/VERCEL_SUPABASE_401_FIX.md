@@ -32,7 +32,7 @@ Vite 只会在构建时将以 `VITE_` 开头的环境变量注入到客户端代
 
 ### 步骤 3：添加环境变量
 
-添加以下三个环境变量：
+添加以下环境变量：
 
 | 环境变量 | 值 | 类型 |
 |-----------|-----|------|
@@ -49,28 +49,25 @@ Vite 只会在构建时将以 `VITE_` 开头的环境变量注入到客户端代
 
 ### 步骤 4：重新部署
 
-添加环境变量后：
+添加环境变量后，Vercel 会自动触发新的构建，或手动触发：
 
-1. Vercel 会自动触发新的构建
-2. 或手动进入 **Deployments** 标签点击 **Redeploy**
+1. 进入 Vercel 项目 → **Deployments** 标签
+2. 点击目标部署右侧的 **⋮** → **Redeploy**
 
 ### 步骤 5：验证修复
 
-部署完成后：
+部署完成后，打开浏览器控制台，应该看到：
 
-1. 打开你的 Vercel URL（如 `player-grouping.vercel.app`）
-2. 打开浏览器开发者工具（F12）
-3. 查看控制台日志
+✅ **成功标志**：
+```
+🔍 Supabase 配置状态：{
+  urlConfigured: true,
+  keyConfigured: true,
+  urlPrefix: 'https://saeplsevqe...'
+}
+```
 
-**成功标志**：
-```
-🔍 Supabase 配置状态：{ urlConfigured: true, keyConfigured: true, ... }
-```
-
-**失败标志**：
-```
-⚠️ Supabase 配置缺失...
-```
+如果看到 `⚠️ Supabase 配置缺失...`，则说明环境变量未正确设置。
 
 ## 验证环境变量是否正确注入
 
