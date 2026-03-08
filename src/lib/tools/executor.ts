@@ -53,8 +53,8 @@ export async function executeToolCall(
  * @returns 球员统计数据
  */
 async function getPlayerStats(
-  playerName: string,
-  season?: string
+  _playerName: string,
+  _season?: string
 ): Promise<ToolCallResult> {
   // 实际查询由后端处理
   // 后端通过 api/chat.ts 直接查询 Supabase
