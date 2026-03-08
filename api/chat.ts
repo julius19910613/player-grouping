@@ -134,11 +134,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-1.5-flash',
-    tools: enableFunctionCalling ? [{ functionDeclarations: tools }] : undefined,
-  });
+  console.log('Initializing Gemini with API key length:', apiKey.length);
+  
+  let genAI;
+  let model;
+  
+  try {
+    genAI = new GoogleGenerativeAI(apiKey);
+    console.log('GoogleGenerativeAI instance created');
+    
+    model = genAI.getGenerativeModel({ 
+      model: 'gemini-1.5-flash',
+      tools: enableFunctionCalling ? [{ functionDeclarations: tools }] : undefined,
+    });
+    console.log('Model initialized successfully');
+  } catch (initError) {
+    console.error('Failed to initialize Gemini:', initError);
+    return res.status(500).json({
+      error: 'Initialization failed',
+      message: 'Gemini API 初始化失败',
+      details: initError instanceof Error ? initError.message : 'Unknown error'
+    });
+  }
 
   // Create timeout promise
   const timeoutPromise = new Promise((_, reject) => {
