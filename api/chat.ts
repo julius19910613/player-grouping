@@ -144,7 +144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('GoogleGenerativeAI instance created');
     
     model = genAI.getGenerativeModel({ 
-      model: 'gemini-1.5-flash',
+      model: 'gemini-pro',
       tools: enableFunctionCalling ? [{ functionDeclarations: tools }] : undefined,
     });
     console.log('Model initialized successfully');
