@@ -5,6 +5,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   
   try {
+    // Check environment variables first
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({
+        success: false,
+        error: 'Missing Supabase credentials',
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseKey
+      });
+    }
+    
     // Test query with a known player
     const result = await queryPlayersFromDatabase('骚当');
     
