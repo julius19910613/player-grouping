@@ -3,7 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // 尝试导入 db-queries
-    const dbQueries = await import('./lib/db-queries');
+    const dbQueries = await import('../lib/db-queries');
 
     res.status(200).json({
       message: 'Import successful',
