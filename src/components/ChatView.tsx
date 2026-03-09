@@ -69,9 +69,10 @@ export function ChatView() {
     // 屏幕阅读器公告
     screenReader.announce('正在处理您的消息...', 'polite');
 
+    // Create AI response message ID outside try block for cleanup
+    const assistantMessageId = `msg-${Date.now() + 1}`;
+
     try {
-      // Create empty AI response message container
-      const assistantMessageId = `msg-${Date.now() + 1}`;
       setMessages(prev => [...prev, {
         id: assistantMessageId,
         role: 'assistant',
