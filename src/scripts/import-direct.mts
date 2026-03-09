@@ -4,7 +4,8 @@
  */
 
 const PROJECT_REF = 'saeplsevqechdnlkwjyz';
-const ACCESS_TOKEN = 'sbp_20744c5d7e0776c22f0f009f66503d16327fa6ee';
+// Please set SUPABASE_ACCESS_TOKEN in your environment variables
+const ACCESS_TOKEN = process.env.SUPABASE_ACCESS_TOKEN || '';
 
 // 球员数据
 const playersData = [
@@ -91,7 +92,7 @@ async function importPlayers() {
       `;
       await executeSQL(insertSkillsSQL);
       console.log(`   ✅ 能力值创建成功: Overall ${s.overall}\n`);
-      
+
       success++;
     } catch (error) {
       failed++;
@@ -106,7 +107,7 @@ async function importPlayers() {
   console.log('='.repeat(50));
   console.log(`✅ 成功: ${success}`);
   console.log(`❌ 失败: ${failed}`);
-  
+
   if (errors.length > 0) {
     console.log('\n错误详情:');
     errors.forEach(err => console.log(`  - ${err}`));
