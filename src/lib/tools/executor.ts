@@ -1,10 +1,9 @@
 /**
  * Tool Executor
- * 
+ *
  * 执行 AI 调用的工具函数
  */
 
-import { braveSearchClient } from '../brave-search';
 import type { ToolCallResult, ToolName } from './index';
 
 /**
@@ -21,13 +20,10 @@ export async function executeToolCall(
     switch (toolName) {
       case 'get_player_stats':
         return await getPlayerStats(args.player_name, args.season);
-      
-      case 'search_web':
-        return await searchWeb(args.query);
-      
+
       case 'calculate_grouping':
         return await calculateGrouping(args.players, args.criteria);
-      
+
       default:
         return {
           success: false,
@@ -62,37 +58,6 @@ async function getPlayerStats(
     success: false,
     error: '此工具应由后端 API 调用。请通过 /api/chat 端点进行查询。',
   };
-}
-
-/**
- * 联网搜索
- * @param query 搜索关键词
- * @returns 搜索结果
- */
-async function searchWeb(query: string): Promise<ToolCallResult> {
-  try {
-    if (!braveSearchClient.isAvailable()) {
-      return {
-        success: false,
-        error: 'Brave Search API 未配置',
-      };
-    }
-
-    const results = await braveSearchClient.searchAndFormat(query, 5);
-
-    return {
-      success: true,
-      data: {
-        query,
-        results,
-      },
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : '搜索失败',
-    };
-  }
 }
 
 /**

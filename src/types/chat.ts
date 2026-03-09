@@ -1,5 +1,3 @@
-import type { SearchResult } from '../lib/brave-search';
-
 export interface ToolCall {
   name: string;
   args: Record<string, any>;
@@ -14,10 +12,6 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   toolCalls?: ToolCall[];
-  searchResults?: {
-    query: string;
-    results: SearchResult[];
-  };
 }
 
 export interface ChatSession {

@@ -6,7 +6,6 @@
 import { memo, useState, useCallback } from 'react';
 import { Button } from './ui/button';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { SearchResultDisplay } from './chat/SearchResultDisplay';
 import { Copy, RotateCcw, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { FeedbackButtons } from './FeedbackButtons';
@@ -62,16 +61,6 @@ export const ChatMessage = memo<ChatMessageProps>(
             <p className="whitespace-pre-wrap">{message.content}</p>
           ) : (
             <MarkdownRenderer content={message.content} />
-          )}
-
-          {/* 搜索结果 */}
-          {message.searchResults && message.searchResults.results.length > 0 && (
-            <div className="mt-3">
-              <SearchResultDisplay
-                results={message.searchResults.results}
-                query={message.searchResults.query}
-              />
-            </div>
           )}
 
           {/* 时间戳和操作按钮 */}

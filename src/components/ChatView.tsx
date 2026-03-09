@@ -76,7 +76,6 @@ export function ChatView() {
         role: 'assistant',
         content: typeof response === 'string' ? response : responseData.message || response,
         timestamp: new Date(),
-        searchResults: responseData.searchResults || undefined,
       };
 
       setMessages(prev => [...prev, assistantMessage]);

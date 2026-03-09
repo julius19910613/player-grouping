@@ -1,12 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenerativeAI, FunctionDeclaration } from '@google/generative-ai';
 import { LRUCache } from 'lru-cache';
+import {
+  getPlayerBasicInfo,
+  getPlayerSkills,
+  getPlayerRecentMatches,
+  getPlayerAverageStats,
+  getMatchHistory,
+  analyzeMatchPerformance
+} from '../lib/db-queries';
 
 // Tool definitions
 const tools: FunctionDeclaration[] = [
   {
     name: "get_player_stats",
-    description: "【优先使用】查询用户私有数据库中的球员信息。这是用户自己录入的球员（如朋友、队友等），包含技能等级、位置等详细数据。当用户询问某个球员时，应优先使用此工具查询，而不是联网搜索。",
+    description: "【优先使用】查询用户私有数据库中的球员信息。这是用户自己录入的球员（如朋友、队友等），包含技能等级、位置等详细数据。当用户询问某个球员时，应优先使用此工具查询。",
     parameters: {
       type: "object",
       properties: {
@@ -23,17 +31,77 @@ const tools: FunctionDeclaration[] = [
     }
   } as any,
   {
-    name: "search_web",
-    description: "【降级使用】联网搜索公开的篮球信息，例如 NBA 球星、比赛新闻等。只有在私有数据库查询不到时才使用此工具。注意：此工具无法查询用户录入的球员数据。",
+    name: "get_match_history",
+    description: "查询比赛历史记录，支持按日期范围、球员筛选",
     parameters: {
       type: "object",
       properties: {
-        query: {
+        player_name: {
           type: "string",
-          description: "搜索关键词，例如 'NBA 最新交易'、'湖人队 詹姆斯 数据'"
+          description: "球员姓名（可选，筛选特定球员参与的比赛）"
+        },
+        date_from: {
+          type: "string",
+          description: "起始日期（YYYY-MM-DD，可选）"
+        },
+        date_to: {
+          type: "string",
+          description: "结束日期（YYYY-MM-DD，可选）"
+        },
+        limit: {
+          type: "number",
+          description: "返回数量（默认 10，最大 50）"
+        }
+      }
+    }
+  } as any,
+  {
+    name: "compare_players",
+    description: "对比多名球员的能力和比赛数据",
+    parameters: {
+      type: "object",
+      properties: {
+        player_names: {
+          type: "array",
+          items: {
+            type: "string"
+          },
+          description: "球员姓名列表（2-5 个）"
+        },
+        criteria: {
+          type: "array",
+          items: {
+            type: "string"
+          },
+          description: "对比维度（默认 all）"
         }
       },
-      required: ["query"]
+      required: ["player_names"]
+    }
+  } as any,
+  {
+    name: "analyze_match_performance",
+    description: "分析单场比赛的整体表现或特定球员表现",
+    parameters: {
+      type: "object",
+      properties: {
+        match_id: {
+          type: "string",
+          description: "比赛ID（可选）"
+        },
+        match_date: {
+          type: "string",
+          description: "比赛日期（YYYY-MM-DD，可选）"
+        },
+        player_name: {
+          type: "string",
+          description: "球员姓名（可选，聚焦特定球员）"
+        },
+        analysis_type: {
+          type: "string",
+          description: "分析类型（默认 overview）"
+        }
+      }
     }
   } as any,
   {
@@ -162,9 +230,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     setTimeout(() => reject(new Error('Timeout')), TIMEOUT_MS);
   });
 
-  // Track search results for UI display
-  let searchResultsForUI: any = null;
-
   try {
     // Convert messages to Gemini format
     const geminiMessages = convertToGeminiFormat(messages);
@@ -195,14 +260,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           functionCall.name,
           functionCall.args as Record<string, any>
         );
-
-        // Track search results for UI
-        if (functionCall.name === 'search_web' && toolResult.success && toolResult.data) {
-          searchResultsForUI = {
-            query: toolResult.data.query,
-            results: toolResult.data.results || [],
-          };
-        }
 
         // Send tool result back to AI
         const functionResponseMessage = {
@@ -244,11 +301,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       message: text,
       timestamp: new Date().toISOString()
     };
-
-    // Include search results if available
-    if (searchResultsForUI) {
-      response_data.searchResults = searchResultsForUI;
-    }
 
     return res.status(200).json(response_data);
 
@@ -323,14 +375,20 @@ async function executeToolCall(
 ): Promise<any> {
   switch (toolName) {
     case 'get_player_stats':
-      return await getPlayerStats(args.player_name, args.season);
-    
-    case 'search_web':
-      return await searchWeb(args.query);
-    
+      return await getPlayerStatsHandler(args.player_name, args.season);
+
+    case 'get_match_history':
+      return await getMatchHistoryHandler(args.player_name, args.date_from, args.date_to, args.limit);
+
+    case 'compare_players':
+      return await comparePlayersHandler(args.player_names, args.criteria);
+
+    case 'analyze_match_performance':
+      return await analyzeMatchPerformanceHandler(args.match_id, args.match_date, args.player_name, args.analysis_type);
+
     case 'calculate_grouping':
       return await calculateGrouping(args.players, args.criteria);
-    
+
     default:
       return {
         success: false,
@@ -340,21 +398,15 @@ async function executeToolCall(
 }
 
 /**
- * Get player stats from Supabase database
+ * Get player stats from Supabase database (Optimized)
  */
-async function getPlayerStats(playerName: string, season?: string): Promise<any> {
+async function getPlayerStatsHandler(playerName: string, season?: string): Promise<any> {
   try {
     // Import Supabase client
     const { createClient } = await import('@supabase/supabase-js');
     
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-    
-    console.log('[DEBUG] Supabase config:', {
-      hasUrl: !!supabaseUrl,
-      hasKey: !!supabaseKey,
-      url: supabaseUrl
-    });
     
     if (!supabaseUrl || !supabaseKey) {
       return {
@@ -366,30 +418,10 @@ async function getPlayerStats(playerName: string, season?: string): Promise<any>
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // Query players first (simplified query to debug)
-    const { data: players, error } = await supabase
-      .from('players')
-      .select('*')
-      .ilike('name', `%${playerName}%`)
-      .limit(10);
+    // 1. 查询球员基本信息
+    const basicInfoList = await getPlayerBasicInfo(supabase, playerName);
     
-    console.log('[DEBUG] Query result:', {
-      playerName,
-      playersFound: players?.length || 0,
-      error: error?.message,
-      firstPlayer: players?.[0]
-    });
-    
-    if (error) {
-      console.error('Supabase query error:', error);
-      return {
-        success: false,
-        error: error.message,
-        message: '查询失败'
-      };
-    }
-    
-    if (!players || players.length === 0) {
+    if (!basicInfoList || basicInfoList.length === 0) {
       return {
         success: false,
         data: {
@@ -399,19 +431,32 @@ async function getPlayerStats(playerName: string, season?: string): Promise<any>
       };
     }
     
-    // If players found, fetch their skills
-    const playersWithSkills = await Promise.all(
-      players.map(async (player: any) => {
-        const { data: skills } = await supabase
-          .from('player_skills')
-          .select('*')
-          .eq('player_id', player.id)
-          .single();
+    // 2. 查询所有匹配球员的详细数据
+    const playersWithData = await Promise.all(
+      basicInfoList.map(async (player) => {
+        // 查询技能数据
+        const skills = await getPlayerSkills(supabase, player.id);
+        
+        // 查询最近 5 场比赛数据
+        const recentMatches = await getPlayerRecentMatches(supabase, player.id, 5);
+        
+        // 查询平均统计数据
+        const avgStats = await getPlayerAverageStats(supabase, player.id);
         
         return {
           name: player.name,
           position: player.position,
           skills: skills || {},
+          recent_matches: recentMatches || [],
+          average_stats: avgStats || {
+            avgPoints: 0,
+            avgRebounds: 0,
+            avgAssists: 0,
+            avgSteals: 0,
+            avgBlocks: 0,
+            avgEfficiency: 0,
+            matchCount: 0
+          },
           created_at: player.created_at
         };
       })
@@ -420,9 +465,9 @@ async function getPlayerStats(playerName: string, season?: string): Promise<any>
     return {
       success: true,
       data: {
-        message: `找到 ${players.length} 名匹配的球员`,
-        count: players.length,
-        players: playersWithSkills
+        message: `找到 ${playersWithData.length} 名匹配的球员`,
+        count: playersWithData.length,
+        players: playersWithData
       }
     };
   } catch (error) {
@@ -436,75 +481,184 @@ async function getPlayerStats(playerName: string, season?: string): Promise<any>
 }
 
 /**
- * Search web (requires backend API key)
+ * Get match history from database
  */
-async function searchWeb(query: string): Promise<any> {
-  const apiKey = process.env.BRAVE_SEARCH_API_KEY;
-
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'Brave Search API 未配置',
-    };
-  }
-
+async function getMatchHistoryHandler(playerName?: string, dateFrom?: string, dateTo?: string, limit?: number): Promise<any> {
   try {
-    const response = await fetch(
-      `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
-      {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Accept-Encoding': 'gzip',
-          'X-Subscription-Token': apiKey,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`搜索失败: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const results = data.web?.results || [];
-
-    if (results.length === 0) {
+    const { createClient } = await import('@supabase/supabase-js');
+    
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
       return {
-        success: true,
-        data: {
-          query,
-          results: [],
-          formattedText: '未找到相关结果',
-        },
+        success: false,
+        error: 'Supabase configuration missing',
+        message: '数据库配置缺失'
       };
     }
-
-    // Return structured results for frontend display
-    const structuredResults = results.map((result: any) => ({
-      title: result.title,
-      url: result.url,
-      description: result.description,
-    }));
-
-    // Also format as text for AI context
-    const formattedResults = results
-      .map((result: any, index: number) =>
-        `${index + 1}. ${result.title}\n   ${result.description}\n   链接: ${result.url}`
-      )
-      .join('\n\n');
-
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const result = await getMatchHistory(supabase, {
+      player_name: playerName,
+      date_from: dateFrom,
+      date_to: dateTo,
+      limit: limit || 10
+    });
+    
     return {
       success: true,
       data: {
-        query,
-        results: structuredResults,
-        formattedText: formattedResults,
-      },
+        count: result.length,
+        matches: result
+      }
     };
   } catch (error) {
+    console.error('getMatchHistory error:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : '搜索失败',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      message: '查询比赛历史时发生错误'
+    };
+  }
+}
+
+/**
+ * Compare multiple players
+ */
+async function comparePlayersHandler(playerNames: string[], criteria?: string[]): Promise<any> {
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return {
+        success: false,
+        error: 'Supabase configuration missing',
+        message: '数据库配置缺失'
+      };
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // 1. 查询所有球员的基本信息和技能
+    const players = await Promise.all(
+      playerNames.map(async (name) => {
+        const basicInfoList = await getPlayerBasicInfo(supabase, name);
+        if (!basicInfoList || basicInfoList.length === 0) {
+          return null;
+        }
+        
+        const basicInfo = basicInfoList[0];
+        const skills = await getPlayerSkills(supabase, basicInfo.id);
+        const avgStats = await getPlayerAverageStats(supabase, basicInfo.id);
+        
+        return {
+          ...basicInfo,
+          skills: skills || {},
+          avg_stats: avgStats || {
+            avgPoints: 0,
+            avgRebounds: 0,
+            avgAssists: 0,
+            avgSteals: 0,
+            avgBlocks: 0,
+            avgEfficiency: 0,
+            matchCount: 0
+          }
+        };
+      })
+    );
+    
+    // 过滤掉未找到的球员
+    const validPlayers = players.filter(p => p !== null);
+    
+    if (validPlayers.length === 0) {
+      return {
+        success: false,
+        error: '未找到任何球员',
+        message: '请确认球员姓名是否正确'
+      };
+    }
+    
+    // 2. 对比分析
+    const comparison: any = {};
+    
+    if (validPlayers.length > 1) {
+      // 最佳投手（overall 技能最高）
+      comparison.best_overall = validPlayers.reduce((a: any, b: any) => 
+        (a.skills?.overall || 0) > (b.skills?.overall || 0) ? a : b
+      ).name;
+      
+      // 场均得分最高
+      comparison.best_scorer = validPlayers.reduce((a: any, b: any) => 
+        (a.avg_stats?.avgPoints || 0) > (b.avg_stats?.avgPoints || 0) ? a : b
+      ).name;
+      
+      // 场均篮板最高
+      comparison.best_rebounder = validPlayers.reduce((a: any, b: any) => 
+        (a.avg_stats?.avgRebounds || 0) > (b.avg_stats?.avgRebounds || 0) ? a : b
+      ).name;
+    }
+    
+    return {
+      success: true,
+      data: {
+        players: validPlayers,
+        comparison
+      }
+    };
+  } catch (error) {
+    console.error('comparePlayers error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      message: '对比球员数据时发生错误'
+    };
+  }
+}
+
+/**
+ * Analyze match performance
+ */
+async function analyzeMatchPerformanceHandler(matchId?: string, matchDate?: string, playerName?: string, analysisType?: string): Promise<any> {
+  try {
+    const { createClient } = await import('@supabase/supabase-js';
+    
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return {
+        success: false,
+        error: 'Supabase configuration missing',
+        message: '数据库配置缺失'
+      };
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    const analysis = await analyzeMatchPerformance(supabase, {
+      match_id: matchId,
+      match_date: matchDate,
+      player_name: playerName,
+      analysis_type: (analysisType === 'individual' || analysisType === 'team_comparison') 
+        ? (analysisType === 'individual' ? 'player_specific' : 'overall')
+        : 'overall'
+    });
+    
+    return {
+      success: true,
+      data: analysis
+    };
+  } catch (error) {
+    console.error('analyzeMatchPerformance error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      message: '分析比赛表现时发生错误'
     };
   }
 }

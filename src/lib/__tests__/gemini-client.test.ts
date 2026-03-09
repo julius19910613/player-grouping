@@ -2,14 +2,36 @@
  * Gemini Client 测试
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { GeminiClient } from '../gemini-client';
+
+// Mock Google Generative AI
+class MockGoogleGenerativeAI {
+  constructor(public apiKey: string) {}
+
+  getGenerativeModel() {
+    return {
+      startChat: () => ({
+        sendMessage: vi.fn().mockResolvedValue({
+          response: {
+            text: () => 'Mock AI response',
+            functionCalls: () => [],
+          },
+        }),
+      }),
+    };
+  }
+}
+
+vi.mock('@google/generative-ai', () => ({
+  GoogleGenerativeAI: MockGoogleGenerativeAI,
+}));
 
 describe('GeminiClient', () => {
   let client: GeminiClient;
 
   beforeAll(() => {
-    client = new GeminiClient();
+    client = new GeminiClient({ apiKey: 'test-api-key' });
   });
 
   it('should be available when API key is configured', () => {
@@ -22,7 +44,7 @@ describe('GeminiClient', () => {
     ];
 
     const response = await client.sendMessage(messages);
-    
+
     expect(response).toBeDefined();
     expect(typeof response).toBe('string');
     expect(response.length).toBeGreaterThan(0);

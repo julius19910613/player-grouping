@@ -7,7 +7,15 @@
 import React from 'react';
 import { ExternalLink, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import type { SearchResult } from '../../lib/brave-search';
+
+/**
+ * 搜索结果接口
+ */
+export interface SearchResult {
+  title: string;
+  url: string;
+  description: string;
+}
 
 export interface SearchResultDisplayProps {
   results: SearchResult[];

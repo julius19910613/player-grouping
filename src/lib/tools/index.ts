@@ -1,6 +1,6 @@
 /**
  * Tool Definitions for Gemini Function Calling
- * 
+ *
  * 定义 AI 可以调用的工具函数
  */
 
@@ -11,7 +11,7 @@
 export const tools = [
   {
     name: "get_player_stats",
-    description: "【优先使用】查询用户私有数据库中的球员信息。这是用户自己录入的球员（如朋友、队友等），包含技能等级、位置等详细数据。当用户询问某个球员时，应优先使用此工具查询，而不是联网搜索。",
+    description: "【优先使用】查询用户私有数据库中的球员信息。这是用户自己录入的球员（如朋友、队友等），包含技能等级、位置等详细数据。当用户询问某个球员时，应优先使用此工具查询。",
     parameters: {
       type: "object" as const,
       properties: {
@@ -28,17 +28,77 @@ export const tools = [
     }
   },
   {
-    name: "search_web",
-    description: "【降级使用】联网搜索公开的篮球信息，例如 NBA 球星、比赛新闻等。只有在私有数据库查询不到时才使用此工具。注意：此工具无法查询用户录入的球员数据。",
+    name: "get_match_history",
+    description: "查询比赛历史记录，支持按日期范围、球员筛选",
     parameters: {
       type: "object" as const,
       properties: {
-        query: {
+        player_name: {
           type: "string" as const,
-          description: "搜索关键词，例如 'NBA 最新交易'、'湖人队 詹姆斯 数据'"
+          description: "球员姓名（可选，筛选特定球员参与的比赛）"
+        },
+        date_from: {
+          type: "string" as const,
+          description: "起始日期（YYYY-MM-DD，可选）"
+        },
+        date_to: {
+          type: "string" as const,
+          description: "结束日期（YYYY-MM-DD，可选）"
+        },
+        limit: {
+          type: "number" as const,
+          description: "返回数量（默认 10，最大 50）"
+        }
+      }
+    }
+  },
+  {
+    name: "compare_players",
+    description: "对比多名球员的能力和比赛数据",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        player_names: {
+          type: "array" as const,
+          items: { type: "string" as const },
+          description: "球员姓名列表（2-5 个）"
+        },
+        criteria: {
+          type: "array" as const,
+          items: { 
+            type: "string" as const,
+            enum: ["skills", "stats", "all"]
+          },
+          description: "对比维度（默认 all）"
         }
       },
-      required: ["query"]
+      required: ["player_names"]
+    }
+  },
+  {
+    name: "analyze_match_performance",
+    description: "分析单场比赛的整体表现或特定球员表现",
+    parameters: {
+      type: "object" as const,
+      properties: {
+        match_id: {
+          type: "string" as const,
+          description: "比赛ID（可选）"
+        },
+        match_date: {
+          type: "string" as const,
+          description: "比赛日期（YYYY-MM-DD，可选）"
+        },
+        player_name: {
+          type: "string" as const,
+          description: "球员姓名（可选，聚焦特定球员）"
+        },
+        analysis_type: {
+          type: "string" as const,
+          enum: ["overview", "individual", "team_comparison"],
+          description: "分析类型（默认 overview）"
+        }
+      }
     }
   },
   {
@@ -77,4 +137,4 @@ export interface ToolCallResult {
 /**
  * Tool name type
  */
-export type ToolName = 'get_player_stats' | 'search_web' | 'calculate_grouping';
+export type ToolName = 'get_player_stats' | 'get_match_history' | 'compare_players' | 'analyze_match_performance' | 'calculate_grouping';

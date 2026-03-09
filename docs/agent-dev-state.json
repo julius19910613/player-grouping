@@ -1,0 +1,578 @@
+{
+  "project": "basketball-agent-refactor",
+  "version": "1.0",
+  "created_at": "2026-03-09T09:15:00+08:00",
+  "updated_at": "2026-03-09T09:15:00+08:00",
+  "total_phases": 8,
+  "current_phase": 0,
+  "status": "planning",
+  
+  "phases": [
+    {
+      "id": 1,
+      "name": "准备工作与架构设计",
+      "duration_minutes": 30,
+      "status": "pending",
+      "start_time": null,
+      "end_time": null,
+      "retry_count": 0,
+      "max_retries": 3,
+      "tasks": [
+        {
+          "id": "T1-1",
+          "description": "创建设计文档",
+          "completed": true,
+          "deliverable": "basketball-agent-design.md"
+        },
+        {
+          "id": "T1-2",
+          "description": "创建 Supabase 数据库表",
+          "completed": false,
+          "deliverable": "supabase/agent-tables.sql"
+        },
+        {
+          "id": "T1-3",
+          "description": "配置 Vercel Blob Storage",
+          "completed": false,
+          "deliverable": ".env.local"
+        },
+        {
+          "id": "T1-4",
+          "description": "安装新依赖",
+          "completed": false,
+          "command": "npm install @vercel/blob"
+        },
+        {
+          "id": "T1-5",
+          "description": "创建状态文件模板",
+          "completed": true,
+          "deliverable": "agent-dev-state.json"
+        }
+      ],
+      "deliverables": [
+        "basketball-agent-design.md",
+        "agent-dev-state.json",
+        "supabase/agent-tables.sql",
+        ".env.example"
+      ],
+      "acceptance_criteria": [
+        "数据库表创建成功，可通过 Supabase Dashboard 查询",
+        "Vercel Blob Token 已配置到 .env.local",
+        "npm install 无报错"
+      ],
+      "agents": {
+        "dev": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        },
+        "test": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        }
+      }
+    },
+    {
+      "id": 2,
+      "name": "数据库查询工具增强",
+      "duration_minutes": 45,
+      "status": "pending",
+      "start_time": null,
+      "end_time": null,
+      "retry_count": 0,
+      "max_retries": 3,
+      "tasks": [
+        {
+          "id": "T2-1",
+          "description": "优化 get_player_stats",
+          "completed": false,
+          "file": "api/chat.ts"
+        },
+        {
+          "id": "T2-2",
+          "description": "添加 get_match_history",
+          "completed": false,
+          "file": "api/chat.ts"
+        },
+        {
+          "id": "T2-3",
+          "description": "添加 compare_players",
+          "completed": false,
+          "file": "api/chat.ts"
+        },
+        {
+          "id": "T2-4",
+          "description": "添加 analyze_match_performance",
+          "completed": false,
+          "file": "api/chat.ts"
+        },
+        {
+          "id": "T2-5",
+          "description": "删除 search_web",
+          "completed": false,
+          "file": "api/chat.ts"
+        },
+        {
+          "id": "T2-6",
+          "description": "实现后端查询逻辑",
+          "completed": false,
+          "deliverable": "lib/db-queries.ts"
+        },
+        {
+          "id": "T2-7",
+          "description": "编写单元测试",
+          "completed": false,
+          "deliverable": "api/__tests__/chat.test.ts"
+        }
+      ],
+      "deliverables": [
+        "api/chat.ts",
+        "lib/db-queries.ts",
+        "api/__tests__/chat.test.ts"
+      ],
+      "acceptance_criteria": [
+        "可以通过对话查询比赛历史",
+        "可以对比多个球员数据",
+        "测试覆盖率 > 80%"
+      ],
+      "agents": {
+        "dev": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        },
+        "test": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        }
+      }
+    },
+    {
+      "id": 3,
+      "name": "文件上传基础设施",
+      "duration_minutes": 60,
+      "status": "pending",
+      "start_time": null,
+      "end_time": null,
+      "retry_count": 0,
+      "max_retries": 3,
+      "tasks": [
+        {
+          "id": "T3-1",
+          "description": "创建 /api/upload.ts",
+          "completed": false,
+          "deliverable": "api/upload.ts"
+        },
+        {
+          "id": "T3-2",
+          "description": "创建 FileUploader 组件",
+          "completed": false,
+          "deliverable": "components/chat/FileUploader.tsx"
+        },
+        {
+          "id": "T3-3",
+          "description": "创建 FilePreview 组件",
+          "completed": false,
+          "deliverable": "components/chat/FilePreview.tsx"
+        },
+        {
+          "id": "T3-4",
+          "description": "集成 react-dropzone",
+          "completed": false
+        },
+        {
+          "id": "T3-5",
+          "description": "实现上传进度条",
+          "completed": false,
+          "deliverable": "components/chat/UploadProgressBar.tsx"
+        },
+        {
+          "id": "T3-6",
+          "description": "文件类型和大小验证",
+          "completed": false
+        }
+      ],
+      "deliverables": [
+        "api/upload.ts",
+        "components/chat/FileUploader.tsx",
+        "components/chat/FilePreview.tsx",
+        "components/chat/UploadProgressBar.tsx"
+      ],
+      "acceptance_criteria": [
+        "可拖拽上传图片、视频、文档",
+        "文件成功上传到 Vercel Blob",
+        "显示上传进度",
+        "超过大小限制时提示错误"
+      ],
+      "agents": {
+        "dev": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        },
+        "test": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        }
+      }
+    },
+    {
+      "id": 4,
+      "name": "图片分析功能",
+      "duration_minutes": 45,
+      "status": "pending",
+      "start_time": null,
+      "end_time": null,
+      "retry_count": 0,
+      "max_retries": 3,
+      "tasks": [
+        {
+          "id": "T4-1",
+          "description": "创建 /api/analyze-media.ts",
+          "completed": false,
+          "deliverable": "api/analyze-media.ts"
+        },
+        {
+          "id": "T4-2",
+          "description": "实现图片分析逻辑",
+          "completed": false
+        },
+        {
+          "id": "T4-3",
+          "description": "创建 AnalysisProgress 组件",
+          "completed": false,
+          "deliverable": "components/chat/AnalysisProgress.tsx"
+        },
+        {
+          "id": "T4-4",
+          "description": "创建 AnalysisResult 组件",
+          "completed": false,
+          "deliverable": "components/chat/AnalysisResult.tsx"
+        },
+        {
+          "id": "T4-5",
+          "description": "测试 Gemini Vision API",
+          "completed": false,
+          "deliverable": "api/__tests__/analyze-media.test.ts"
+        }
+      ],
+      "deliverables": [
+        "api/analyze-media.ts",
+        "components/chat/AnalysisProgress.tsx",
+        "components/chat/AnalysisResult.tsx",
+        "api/__tests__/analyze-media.test.ts"
+      ],
+      "acceptance_criteria": [
+        "上传球员投篮图片后，返回姿势分析",
+        "分析结果包含优点、改进建议、评分",
+        "测试通过率 100%"
+      ],
+      "agents": {
+        "dev": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        },
+        "test": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        }
+      }
+    },
+    {
+      "id": 5,
+      "name": "视频分析功能",
+      "duration_minutes": 60,
+      "status": "pending",
+      "start_time": null,
+      "end_time": null,
+      "retry_count": 0,
+      "max_retries": 3,
+      "tasks": [
+        {
+          "id": "T5-1",
+          "description": "扩展 analyze-media 支持视频",
+          "completed": false,
+          "file": "api/analyze-media.ts"
+        },
+        {
+          "id": "T5-2",
+          "description": "实现视频分段处理",
+          "completed": false,
+          "deliverable": "lib/video-analyzer.ts"
+        },
+        {
+          "id": "T5-3",
+          "description": "提取关键事件",
+          "completed": false
+        },
+        {
+          "id": "T5-4",
+          "description": "生成精彩集锦摘要",
+          "completed": false
+        },
+        {
+          "id": "T5-5",
+          "description": "优化性能（超时处理）",
+          "completed": false
+        }
+      ],
+      "deliverables": [
+        "api/analyze-media.ts",
+        "lib/video-analyzer.ts",
+        "types/analysis.ts"
+      ],
+      "acceptance_criteria": [
+        "上传 3 分钟比赛视频后，返回事件时间线",
+        "标注每个事件的时间戳、球员、描述",
+        "处理时间 < 90 秒"
+      ],
+      "agents": {
+        "dev": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        },
+        "test": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        }
+      }
+    },
+    {
+      "id": 6,
+      "name": "文档分析功能",
+      "duration_minutes": 45,
+      "status": "pending",
+      "start_time": null,
+      "end_time": null,
+      "retry_count": 0,
+      "max_retries": 3,
+      "tasks": [
+        {
+          "id": "T6-1",
+          "description": "扩展 analyze-media 支持文档",
+          "completed": false,
+          "file": "api/analyze-media.ts"
+        },
+        {
+          "id": "T6-2",
+          "description": "PDF/Word 解析",
+          "completed": false
+        },
+        {
+          "id": "T6-3",
+          "description": "Excel 解析（JSON 转换）",
+          "completed": false,
+          "deliverable": "lib/document-parser.ts"
+        },
+        {
+          "id": "T6-4",
+          "description": "提供数据导入选项",
+          "completed": false,
+          "deliverable": "api/import-data.ts"
+        },
+        {
+          "id": "T6-5",
+          "description": "更新到数据库",
+          "completed": false
+        }
+      ],
+      "deliverables": [
+        "api/analyze-media.ts",
+        "lib/document-parser.ts",
+        "api/import-data.ts"
+      ],
+      "acceptance_criteria": [
+        "上传 Excel 比赛数据表后，识别字段并映射",
+        "用户确认后导入到 Supabase",
+        "支持错误处理和回滚"
+      ],
+      "agents": {
+        "dev": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        },
+        "test": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        }
+      }
+    },
+    {
+      "id": 7,
+      "name": "集成测试与优化",
+      "duration_minutes": 60,
+      "status": "pending",
+      "start_time": null,
+      "end_time": null,
+      "retry_count": 0,
+      "max_retries": 3,
+      "tasks": [
+        {
+          "id": "T7-1",
+          "description": "端到端测试（E2E）",
+          "completed": false,
+          "deliverable": "e2e/agent-flow.spec.ts"
+        },
+        {
+          "id": "T7-2",
+          "description": "性能优化",
+          "completed": false
+        },
+        {
+          "id": "T7-3",
+          "description": "错误处理完善",
+          "completed": false
+        },
+        {
+          "id": "T7-4",
+          "description": "无障碍优化",
+          "completed": false
+        }
+      ],
+      "deliverables": [
+        "e2e/agent-flow.spec.ts",
+        "性能报告（Lighthouse）",
+        "错误监控配置（Sentry）"
+      ],
+      "acceptance_criteria": [
+        "E2E 测试通过率 100%",
+        "Lighthouse 性能分数 > 90",
+        "所有错误都有用户友好提示"
+      ],
+      "agents": {
+        "dev": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        },
+        "test": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        }
+      }
+    },
+    {
+      "id": 8,
+      "name": "文档与部署",
+      "duration_minutes": 45,
+      "status": "pending",
+      "start_time": null,
+      "end_time": null,
+      "retry_count": 0,
+      "max_retries": 3,
+      "tasks": [
+        {
+          "id": "T8-1",
+          "description": "更新 README.md",
+          "completed": false,
+          "file": "README.md"
+        },
+        {
+          "id": "T8-2",
+          "description": "创建用户手册",
+          "completed": false,
+          "deliverable": "docs/user-guide.md"
+        },
+        {
+          "id": "T8-3",
+          "description": "API 文档",
+          "completed": false,
+          "deliverable": "docs/api-reference.md"
+        },
+        {
+          "id": "T8-4",
+          "description": "部署到 Vercel",
+          "completed": false
+        },
+        {
+          "id": "T8-5",
+          "description": "发布说明",
+          "completed": false,
+          "deliverable": "GitHub Release"
+        }
+      ],
+      "deliverables": [
+        "README.md",
+        "docs/user-guide.md",
+        "docs/api-reference.md",
+        "Vercel 部署成功",
+        "GitHub Release"
+      ],
+      "acceptance_criteria": [
+        "新用户可在 5 分钟内完成配置",
+        "API 文档覆盖所有端点",
+        "线上环境无报错"
+      ],
+      "agents": {
+        "dev": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        },
+        "test": {
+          "run_id": null,
+          "session_key": null,
+          "status": "idle",
+          "heartbeat": null,
+          "last_update": null
+        }
+      }
+    }
+  ],
+  
+  "monitoring": {
+    "cron_job_id": null,
+    "cron_interval": "5m",
+    "heartbeat_timeout_minutes": 30,
+    "last_heartbeat": null,
+    "feishu_notifications": []
+  },
+  
+  "notes": [
+    {
+      "timestamp": "2026-03-09T09:15:00+08:00",
+      "phase": 0,
+      "message": "设计文档和状态文件已创建，准备开始 Phase 1"
+    }
+  ]
+}

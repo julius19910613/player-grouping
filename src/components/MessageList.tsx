@@ -1,7 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { Card, CardContent } from './ui/card';
 import { Skeleton } from './ui/skeleton';
-import { SearchResultDisplay } from './chat/SearchResultDisplay';
 import type { ChatMessage } from '../types/chat';
 
 interface MessageListProps {
@@ -59,15 +58,6 @@ export function MessageList({ messages, isLoading, error }: MessageListProps) {
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
-              {/* Display search results if available */}
-              {msg.searchResults && msg.searchResults.results.length > 0 && (
-                <div className="mt-3">
-                  <SearchResultDisplay
-                    results={msg.searchResults.results}
-                    query={msg.searchResults.query}
-                  />
-                </div>
-              )}
               <div className="text-xs opacity-70 mt-1">
                 {msg.timestamp instanceof Date
                   ? msg.timestamp.toLocaleTimeString()

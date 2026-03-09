@@ -10,6 +10,31 @@
  * 5. 冲突解决
  */
 
+import { vi } from 'vitest';
+
+// Mock Supabase 客户端
+vi.mock('../lib/supabase', () => ({
+  supabase: {
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      insert: vi.fn().mockReturnThis(),
+      update: vi.fn().mockReturnThis(),
+      delete: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+      order: vi.fn().mockResolvedValue({ data: [], error: null }),
+    })),
+    auth: {
+      getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'test-user' } }, error: null }),
+    },
+  },
+}));
+
+// Mock auth
+vi.mock('../lib/auth', () => ({
+  getCurrentUserId: vi.fn().mockResolvedValue('test-user'),
+}));
+
 import { HybridPlayerRepository } from '../repositories/hybrid-player.repository';
 import { HybridGroupingRepository } from '../repositories/hybrid-grouping.repository';
 import { networkStatus } from '../lib/network-status';
