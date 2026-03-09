@@ -625,7 +625,7 @@ async function comparePlayersHandler(playerNames: string[], criteria?: string[])
  */
 async function analyzeMatchPerformanceHandler(matchId?: string, matchDate?: string, playerName?: string, analysisType?: string): Promise<any> {
   try {
-    const { createClient } = await import('@supabase/supabase-js';
+    const { createClient } = await import('@supabase/supabase-js');
     
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
