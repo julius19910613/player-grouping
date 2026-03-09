@@ -1,0 +1,36 @@
+{
+  "phase": 2,
+  "status": "done",
+  "completedAt": "2026-03-03T03:20:00.000Z",
+  "tasks": {
+    "create-types-file": "done",
+    "define-row-types": "done",
+    "define-config-types": "done",
+    "define-error-types": "done",
+    "verify-compilation": "done"
+  },
+  "files": [
+    "src/types/database.ts"
+  ],
+  "details": {
+    "types": {
+      "PlayerRow": "球员数据库行类型",
+      "PlayerSkillRow": "球员能力数据库行类型",
+      "GroupingHistoryRow": "分组历史数据库行类型",
+      "DatabaseConfig": "数据库配置类型",
+      "BackupData": "备份数据类型",
+      "MigrationStatus": "迁移状态类型",
+      "MigrationResult": "迁移结果类型",
+      "RollbackResult": "回滚结果类型",
+      "DatabaseStatus": "数据库状态类型",
+      "GroupingData": "分组数据类型",
+      "DatabaseError": "数据库错误类",
+      "MigrationError": "迁移错误类",
+      "BackupError": "备份错误类"
+    },
+    "compilation": {
+      "status": "success",
+      "buildTime": "308ms"
+    }
+  }
+}

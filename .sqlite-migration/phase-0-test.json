@@ -1,0 +1,26 @@
+{
+  "phase": 0,
+  "testStatus": "passed",
+  "testedAt": "2026-03-03T03:14:00.000Z",
+  "results": {
+    "compile": "passed",
+    "file-exists": "passed",
+    "script-in-package": "passed"
+  },
+  "issues": [],
+  "details": {
+    "compile": {
+      "status": "success",
+      "output": "vite build completed in 325ms"
+    },
+    "file-exists": {
+      "status": "success",
+      "file": "scripts/backup-localstorage.ts",
+      "size": "6.8K"
+    },
+    "script-in-package": {
+      "status": "success",
+      "command": "npm run backup"
+    }
+  }
+}

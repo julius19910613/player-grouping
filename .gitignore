@@ -17,6 +17,9 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+yarn-error.log*
+pnpm-error.log*
+lerna-debug.log*
 
 # Environment variables (IMPORTANT: Never commit real .env files!)
 .env
@@ -30,51 +33,38 @@ coverage/
 test-results/
 *.lcov
 
-# SQLite Migration
-backups/
-.sqlite-migration/
+# 文档归档（进行中的文档和临时文件）
+docs.wip/
+docs.archive/
+docs.archive/templates/
 
-# Supabase
-.supabase/
+# 文档模板
+docs.archive/templates/
 
-# Editor/IDE
+# 临时文件和测试记录
+*.log
+*.tmp
+.DS_Store
+
+# 菜单功能测试（不提交到版本库）
+menu-*.png
+menu-functionality-test.json
+ui-verification.png
+
+# IDE 配置
 .vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
 .idea/
 *.swp
 *.swo
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
 
-# OS files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
+# Claude 配置（如存在）
+.claude/
 
-# Temporary files
-*.tmp
-*.temp
-.cache/
-.parcel-cache/
+# 测试覆盖率
+coverage/
 
-# Debug
-*.cpuprofile
-*.heapsnapshot
-
-# Misc
-*.pem
-*.key
-*.p12
-
-# Vercel
-.vercel/
-.vercel
+# 数据库
+*.db
+*.sqlite
+*.sqlite-journal
 .env.vercel

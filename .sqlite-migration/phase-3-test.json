@@ -1,0 +1,40 @@
+{
+  "phase": 3,
+  "testStatus": "passed",
+  "testedAt": "2026-03-03T03:26:00.000Z",
+  "results": {
+    "compile": "passed",
+    "file-exists": "passed",
+    "backup-manager-methods": "passed",
+    "auto-cleanup": "passed"
+  },
+  "issues": [],
+  "details": {
+    "compile": {
+      "status": "success",
+      "buildTime": "306ms"
+    },
+    "file-exists": {
+      "status": "success",
+      "file": "src/utils/backup.ts",
+      "size": "7.0K"
+    },
+    "backup-manager-methods": {
+      "status": "success",
+      "methods": [
+        "createBackup",
+        "restoreFromBackup",
+        "listBackups",
+        "deleteBackup",
+        "hasBackups",
+        "getLatestBackup",
+        "autoBackupBeforeMigration"
+      ]
+    },
+    "auto-cleanup": {
+      "status": "success",
+      "maxBackups": 5,
+      "method": "cleanOldBackups()"
+    }
+  }
+}
