@@ -1,14 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenerativeAI, FunctionDeclaration } from '@google/generative-ai';
 import { LRUCache } from 'lru-cache';
-import {
-  getPlayerBasicInfo,
-  getPlayerSkills,
-  getPlayerRecentMatches,
-  getPlayerAverageStats,
-  getMatchHistory,
-  analyzeMatchPerformance
-} from '../lib/db-queries';
 
 // Tool definitions
 const tools: FunctionDeclaration[] = [
