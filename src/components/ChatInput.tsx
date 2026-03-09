@@ -11,6 +11,7 @@ import { useDebounce } from '../hooks/useDebounce';
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
+  isLoading?: boolean; // 是否正在生成回复
   placeholder?: string;
   maxLength?: number;
   enableAutocomplete?: boolean;
@@ -27,10 +28,11 @@ const DEFAULT_QUICK_COMMANDS = [
   '查看统计',
 ];
 
-export function ChatInput({ 
-  onSend, 
-  disabled, 
-  placeholder = '输入消息... (Shift+Enter 换行)', 
+export function ChatInput({
+  onSend,
+  disabled,
+  isLoading = false,
+  placeholder = '输入消息... (Shift+Enter 换行)',
   maxLength = 1000,
   enableAutocomplete = true,
   quickCommands = DEFAULT_QUICK_COMMANDS
@@ -159,14 +161,14 @@ export function ChatInput({
           aria-controls={showAutocomplete ? 'autocomplete-list' : undefined}
           data-testid="chat-input"
         />
-        <Button 
-          onClick={handleSend} 
+        <Button
+          onClick={handleSend}
           disabled={!input.trim() || disabled || input.length > maxLength}
           className="self-end"
-          aria-label="发送消息"
+          aria-label={isLoading ? "正在生成回复" : "发送消息"}
           data-testid="send-button"
         >
-          发送
+          {isLoading ? '生成中...' : '发送'}
         </Button>
       </div>
       
@@ -185,7 +187,7 @@ export function ChatInput({
       {/* 快捷命令提示 */}
       {!showAutocomplete && input === '' && (
         <div className="text-xs text-muted-foreground mt-1" aria-label="提示">
-          💡 输入 / 查看快捷命令
+          {isLoading ? '🔄 正在生成回复...' : '💡 输入 / 查看快捷命令'}
         </div>
       )}
     </div>

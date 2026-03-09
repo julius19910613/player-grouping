@@ -99,10 +99,17 @@ export class ChatService {
     try {
       let response: string;
 
-      if (this.provider === 'gemini') {
-        response = await this.sendToGeminiStream(message, onChunk);
-      } else {
-        throw new Error('暂不支持该 AI 提供商');
+      // 优先尝试后端 API route
+      try {
+        response = await this.sendToBackendStream(message, onChunk);
+      } catch (backendError) {
+        console.warn('Backend API stream failed, trying direct Gemini call:', backendError);
+
+        if (this.provider === 'gemini' && import.meta.env.DEV) {
+          response = await this.sendToGeminiStream(message, onChunk);
+        } else {
+          throw backendError;
+        }
       }
 
       // 添加 AI 响应到历史
@@ -118,6 +125,100 @@ export class ChatService {
       }
 
       throw error;
+    }
+  }
+
+  /**
+   * 发送到后端 API route（流式）
+   */
+  private async sendToBackendStream(_message: string, onChunk: (text: string) => void): Promise<string> {
+    const apiUrl = import.meta.env.PROD
+      ? 'https://player-grouping.vercel.app/api/chat'
+      : 'http://localhost:5173/api/chat';
+
+    const timer = startTimer('chat_api_call_stream', {
+      endpoint: '/api/chat',
+      provider: this.provider,
+    });
+
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        },
+        body: JSON.stringify({
+          messages: this.messageHistory,
+          enableFunctionCalling: this.enableFunctionCalling,
+          stream: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw this.createChatError(
+          'API_ERROR',
+          error.message || `API 请求失败: ${response.status}`,
+          response.status >= 500 || response.status === 429
+        );
+      }
+
+      if (!response.body) {
+        throw new Error('ReadableStream not supported by this browser.');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let done = false;
+      let fullText = '';
+      let buffer = '';
+
+      while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        if (value) {
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // keep the last incomplete line
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6);
+              if (dataStr === '[DONE]') {
+                done = true;
+                break;
+              }
+              if (dataStr.trim() === '') continue;
+              try {
+                const data = JSON.parse(dataStr);
+                if (data.text) {
+                  onChunk(data.text);
+                  fullText += data.text;
+                } else if (data.error) {
+                  throw new Error(data.error);
+                }
+              } catch (e) {
+                console.error('Failed to parse SSE data:', dataStr, e);
+              }
+            }
+          }
+        }
+      }
+
+      const duration = timer.stop();
+      monitoringService.trackApiCall({
+        timestamp: new Date().toISOString(),
+        endpoint: '/api/chat',
+        method: 'POST',
+        duration,
+        status: 200,
+        metadata: { messageLength: fullText.length, streamed: true },
+      });
+
+      return fullText;
+    } catch (error) {
+      if (this.isChatError(error)) throw error;
+      throw this.createChatError('NETWORK_ERROR', '网络错误，请检查网络连接', true);
     }
   }
 
@@ -151,7 +252,7 @@ export class ChatService {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        
+
         // 记录失败请求
         monitoringService.trackApiCall({
           timestamp: new Date().toISOString(),
@@ -199,11 +300,11 @@ export class ChatService {
           provider: this.provider,
         });
       }
-      
+
       if (this.isChatError(error)) {
         throw error;
       }
-      
+
       throw this.createChatError(
         'NETWORK_ERROR',
         '网络错误，请检查网络连接',

@@ -1,6 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenerativeAI, FunctionDeclaration } from '@google/generative-ai';
 import { LRUCache } from 'lru-cache';
+import {
+  getPlayerBasicInfo,
+  getPlayerSkills,
+  getPlayerRecentMatches,
+  getPlayerAverageStats,
+  getMatchHistory,
+  analyzeMatchPerformance
+} from '../lib/db-queries';
 
 // Tool definitions
 const tools: FunctionDeclaration[] = [
@@ -163,7 +171,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Rate limiting
   const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown') as string;
   const count = rateLimit.get(ip) || 0;
-  
+
   if (count >= 10) {
     return res.status(429).json({
       error: 'Too many requests',
@@ -171,12 +179,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       retryAfter: 60
     });
   }
-  
+
   rateLimit.set(ip, count + 1);
 
   // Validate request body
-  const { messages, enableFunctionCalling = true } = req.body;
-  
+  const { messages, enableFunctionCalling = true, stream = false } = req.body;
+
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({
       error: 'Invalid request',
@@ -195,16 +203,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   console.log('Initializing Gemini with API key length:', apiKey.length);
-  
+
   let genAI;
   let model;
-  
+
   try {
     genAI = new GoogleGenerativeAI(apiKey);
     console.log('GoogleGenerativeAI instance created');
-    
-    model = genAI.getGenerativeModel({ 
-      model: 'gemini-2.5-flash',
+
+    model = genAI.getGenerativeModel({
+      model: 'gemini-3.1-flash-lite-preview',
       tools: enableFunctionCalling ? [{ functionDeclarations: tools }] : undefined,
     });
     console.log('Model initialized successfully');
@@ -226,7 +234,98 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Convert messages to Gemini format
     const geminiMessages = convertToGeminiFormat(messages);
 
-    // Initial request
+    if (stream) {
+      // Set headers for Server-Sent Events
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      res.flushHeaders();
+
+      const writeChunk = (text: string) => {
+        res.write(`data: ${JSON.stringify({ text })}\n\n`);
+      };
+
+      try {
+        let result = await Promise.race([
+          model.generateContentStream({
+            contents: geminiMessages,
+            generationConfig: {
+              temperature: 0.7,
+              maxOutputTokens: 2048,
+            },
+          }),
+          timeoutPromise
+        ]);
+
+        let streamResult = result as Awaited<ReturnType<typeof model.generateContentStream>>;
+        let hasFunctionCall = false;
+        let functionCallArgs = null;
+
+        for await (const chunk of streamResult.stream) {
+          const functionCalls = chunk.functionCalls();
+          if (functionCalls && functionCalls.length > 0) {
+            hasFunctionCall = true;
+            functionCallArgs = functionCalls[0];
+            break; // Stop streaming text, need to execute function
+          }
+          const text = chunk.text();
+          if (text) {
+            writeChunk(text);
+          }
+        }
+
+        if (hasFunctionCall && functionCallArgs && enableFunctionCalling) {
+          console.log('Function call during stream:', functionCallArgs.name, functionCallArgs.args);
+
+          const toolResult = await executeToolCall(
+            functionCallArgs.name,
+            functionCallArgs.args as Record<string, any>
+          );
+
+          const functionResponseMessage = {
+            role: 'function',
+            parts: [{
+              functionResponse: {
+                name: functionCallArgs.name,
+                response: toolResult,
+              },
+            }],
+          };
+
+          const secondResult = await Promise.race([
+            model.generateContentStream({
+              contents: [
+                ...geminiMessages,
+                {
+                  role: 'model',
+                  parts: [{ functionCall: functionCallArgs }],
+                },
+                functionResponseMessage as any,
+              ],
+              generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 2048,
+              },
+            }),
+            timeoutPromise
+          ]);
+
+          let secondStreamResult = secondResult as Awaited<ReturnType<typeof model.generateContentStream>>;
+          for await (const chunk of secondStreamResult.stream) {
+            const text = chunk.text();
+            if (text) writeChunk(text);
+          }
+        }
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      } catch (error) {
+        console.error('Stream error:', error);
+        res.write(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`);
+        return res.end();
+      }
+    }
+
+    // Initial request (non-streaming)
     let result = await Promise.race([
       model.generateContent({
         contents: geminiMessages,
@@ -270,7 +369,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               ...geminiMessages,
               {
                 role: 'model',
-                parts: [{ functionCall }],
+                parts: response.response.candidates?.[0]?.content?.parts || [{ functionCall }],
               },
               functionResponseMessage as any,
             ],
@@ -332,7 +431,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 /**
  * Convert messages from OpenAI format to Gemini format
  */
-function convertToGeminiFormat(messages: Array<{role: string; content: string}>): Array<{role: string; parts: Array<{text: string}>}> {
+function convertToGeminiFormat(messages: Array<{ role: string; content: string }>): Array<{ role: string; parts: Array<{ text: string }> }> {
   return messages.map(msg => {
     if (msg.role === 'user') {
       return {
@@ -396,10 +495,10 @@ async function getPlayerStatsHandler(playerName: string, season?: string): Promi
   try {
     // Import Supabase client
     const { createClient } = await import('@supabase/supabase-js');
-    
+
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-    
+
     if (!supabaseUrl || !supabaseKey) {
       return {
         success: false,
@@ -407,12 +506,12 @@ async function getPlayerStatsHandler(playerName: string, season?: string): Promi
         message: '数据库配置缺失'
       };
     }
-    
+
     const supabase = createClient(supabaseUrl, supabaseKey);
-    
+
     // 1. 查询球员基本信息
     const basicInfoList = await getPlayerBasicInfo(supabase, playerName);
-    
+
     if (!basicInfoList || basicInfoList.length === 0) {
       return {
         success: false,
@@ -422,19 +521,19 @@ async function getPlayerStatsHandler(playerName: string, season?: string): Promi
         }
       };
     }
-    
+
     // 2. 查询所有匹配球员的详细数据
     const playersWithData = await Promise.all(
       basicInfoList.map(async (player) => {
         // 查询技能数据
         const skills = await getPlayerSkills(supabase, player.id);
-        
+
         // 查询最近 5 场比赛数据
         const recentMatches = await getPlayerRecentMatches(supabase, player.id, 5);
-        
+
         // 查询平均统计数据
         const avgStats = await getPlayerAverageStats(supabase, player.id);
-        
+
         return {
           name: player.name,
           position: player.position,
@@ -453,7 +552,7 @@ async function getPlayerStatsHandler(playerName: string, season?: string): Promi
         };
       })
     );
-    
+
     return {
       success: true,
       data: {
@@ -478,10 +577,10 @@ async function getPlayerStatsHandler(playerName: string, season?: string): Promi
 async function getMatchHistoryHandler(playerName?: string, dateFrom?: string, dateTo?: string, limit?: number): Promise<any> {
   try {
     const { createClient } = await import('@supabase/supabase-js');
-    
+
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-    
+
     if (!supabaseUrl || !supabaseKey) {
       return {
         success: false,
@@ -489,16 +588,16 @@ async function getMatchHistoryHandler(playerName?: string, dateFrom?: string, da
         message: '数据库配置缺失'
       };
     }
-    
+
     const supabase = createClient(supabaseUrl, supabaseKey);
-    
+
     const result = await getMatchHistory(supabase, {
       player_name: playerName,
       date_from: dateFrom,
       date_to: dateTo,
       limit: limit || 10
     });
-    
+
     return {
       success: true,
       data: {
@@ -522,10 +621,10 @@ async function getMatchHistoryHandler(playerName?: string, dateFrom?: string, da
 async function comparePlayersHandler(playerNames: string[], criteria?: string[]): Promise<any> {
   try {
     const { createClient } = await import('@supabase/supabase-js');
-    
+
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-    
+
     if (!supabaseUrl || !supabaseKey) {
       return {
         success: false,
@@ -533,9 +632,9 @@ async function comparePlayersHandler(playerNames: string[], criteria?: string[])
         message: '数据库配置缺失'
       };
     }
-    
+
     const supabase = createClient(supabaseUrl, supabaseKey);
-    
+
     // 1. 查询所有球员的基本信息和技能
     const players = await Promise.all(
       playerNames.map(async (name) => {
@@ -543,11 +642,11 @@ async function comparePlayersHandler(playerNames: string[], criteria?: string[])
         if (!basicInfoList || basicInfoList.length === 0) {
           return null;
         }
-        
+
         const basicInfo = basicInfoList[0];
         const skills = await getPlayerSkills(supabase, basicInfo.id);
         const avgStats = await getPlayerAverageStats(supabase, basicInfo.id);
-        
+
         return {
           ...basicInfo,
           skills: skills || {},
@@ -563,10 +662,10 @@ async function comparePlayersHandler(playerNames: string[], criteria?: string[])
         };
       })
     );
-    
+
     // 过滤掉未找到的球员
     const validPlayers = players.filter(p => p !== null);
-    
+
     if (validPlayers.length === 0) {
       return {
         success: false,
@@ -574,27 +673,27 @@ async function comparePlayersHandler(playerNames: string[], criteria?: string[])
         message: '请确认球员姓名是否正确'
       };
     }
-    
+
     // 2. 对比分析
     const comparison: any = {};
-    
+
     if (validPlayers.length > 1) {
       // 最佳投手（overall 技能最高）
-      comparison.best_overall = validPlayers.reduce((a: any, b: any) => 
+      comparison.best_overall = validPlayers.reduce((a: any, b: any) =>
         (a.skills?.overall || 0) > (b.skills?.overall || 0) ? a : b
       ).name;
-      
+
       // 场均得分最高
-      comparison.best_scorer = validPlayers.reduce((a: any, b: any) => 
+      comparison.best_scorer = validPlayers.reduce((a: any, b: any) =>
         (a.avg_stats?.avgPoints || 0) > (b.avg_stats?.avgPoints || 0) ? a : b
       ).name;
-      
+
       // 场均篮板最高
-      comparison.best_rebounder = validPlayers.reduce((a: any, b: any) => 
+      comparison.best_rebounder = validPlayers.reduce((a: any, b: any) =>
         (a.avg_stats?.avgRebounds || 0) > (b.avg_stats?.avgRebounds || 0) ? a : b
       ).name;
     }
-    
+
     return {
       success: true,
       data: {
@@ -618,10 +717,10 @@ async function comparePlayersHandler(playerNames: string[], criteria?: string[])
 async function analyzeMatchPerformanceHandler(matchId?: string, matchDate?: string, playerName?: string, analysisType?: string): Promise<any> {
   try {
     const { createClient } = await import('@supabase/supabase-js');
-    
+
     const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
     const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-    
+
     if (!supabaseUrl || !supabaseKey) {
       return {
         success: false,
@@ -629,18 +728,18 @@ async function analyzeMatchPerformanceHandler(matchId?: string, matchDate?: stri
         message: '数据库配置缺失'
       };
     }
-    
+
     const supabase = createClient(supabaseUrl, supabaseKey);
-    
+
     const analysis = await analyzeMatchPerformance(supabase, {
       match_id: matchId,
       match_date: matchDate,
       player_name: playerName,
-      analysis_type: (analysisType === 'individual' || analysisType === 'team_comparison') 
+      analysis_type: (analysisType === 'individual' || analysisType === 'team_comparison')
         ? (analysisType === 'individual' ? 'player_specific' : 'overall')
         : 'overall'
     });
-    
+
     return {
       success: true,
       data: analysis
@@ -672,15 +771,15 @@ async function calculateGrouping(players: string[], criteria: string = 'random')
     case 'random':
       groups = randomGrouping(players);
       break;
-    
+
     case 'skill':
       groups = skillBasedGrouping(players);
       break;
-    
+
     case 'position':
       groups = positionBasedGrouping(players);
       break;
-    
+
     default:
       groups = randomGrouping(players);
   }
@@ -705,7 +804,7 @@ async function calculateGrouping(players: string[], criteria: string = 'random')
 function randomGrouping(players: string[]): string[][] {
   const shuffled = [...players].sort(() => Math.random() - 0.5);
   const groupSize = Math.ceil(shuffled.length / 2);
-  
+
   return [
     shuffled.slice(0, groupSize),
     shuffled.slice(groupSize),
@@ -718,7 +817,7 @@ function randomGrouping(players: string[]): string[][] {
 function skillBasedGrouping(players: string[]): string[][] {
   const team1: string[] = [];
   const team2: string[] = [];
-  
+
   players.forEach((player, index) => {
     if (index % 2 === 0) {
       team1.push(player);
@@ -726,7 +825,7 @@ function skillBasedGrouping(players: string[]): string[][] {
       team2.push(player);
     }
   });
-  
+
   return [team1, team2].filter(team => team.length > 0);
 }
 
@@ -735,7 +834,7 @@ function skillBasedGrouping(players: string[]): string[][] {
  */
 function positionBasedGrouping(players: string[]): string[][] {
   const mid = Math.ceil(players.length / 2);
-  
+
   return [
     players.slice(0, mid),
     players.slice(mid),

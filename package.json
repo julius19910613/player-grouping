@@ -6,6 +6,7 @@
   "homepage": "https://julius19910613.github.io/player-grouping",
   "scripts": {
     "dev": "vite",
+    "dev:vercel": "vercel dev",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

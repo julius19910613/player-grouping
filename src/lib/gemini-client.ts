@@ -41,7 +41,7 @@ export class GeminiClient {
 
   constructor(config: GeminiClientConfig = {}) {
     this.apiKey = config.apiKey || import.meta.env.VITE_GEMINI_API_KEY || '';
-    this.model = config.model || 'gemini-1.5-flash';
+    this.model = config.model || 'gemini-3.1-flash-lite-preview';
     this.timeout = config.timeout || 30000;
     this.maxRetries = config.maxRetries || 3;
 
@@ -77,11 +77,11 @@ export class GeminiClient {
     }
 
     return this.executeWithRetry(async () => {
-      const model = this.genAI!.getGenerativeModel({ 
+      const model = this.genAI!.getGenerativeModel({
         model: this.model,
         tools: [{ functionDeclarations: tools as any }],
       });
-      
+
       // 转换消息格式
       const geminiMessages = this.convertMessages(messages);
 
@@ -103,14 +103,14 @@ export class GeminiClient {
 
         // 处理 Function Calling
         const response = result.response;
-        
+
         // 检查是否有函数调用
         const functionCall = response.functionCalls()?.[0];
-        
+
         if (functionCall) {
           // 执行工具调用
           console.log('Function call:', functionCall.name, functionCall.args);
-          
+
           const toolResult = await executeToolCall(
             functionCall.name as any,
             functionCall.args as Record<string, any>
@@ -133,7 +133,7 @@ export class GeminiClient {
               ...geminiMessages,
               {
                 role: 'model',
-                parts: [{ functionCall }],
+                parts: response.candidates?.[0]?.content?.parts || [{ functionCall }],
               },
               functionResponseMessage as any,
             ],

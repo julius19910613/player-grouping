@@ -142,10 +142,11 @@ export interface ARKChatRequest {
   }>;
   temperature?: number;
   max_tokens?: number;
+  stream?: boolean; // 是否启用流式输出
 }
 
 /**
- * 豆包/ARK API 响应格式
+ * 豆包/ARK API 响应格式（非流式）
  */
 export interface ARKChatResponse {
   id: string;
@@ -158,6 +159,26 @@ export interface ARKChatResponse {
     finish_reason: string;
   }>;
   usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+/**
+ * 豆包/ARK API 流式响应格式（SSE 中的 delta）
+ */
+export interface ARKStreamChunk {
+  id: string;
+  choices: Array<{
+    index: number;
+    delta: {
+      role?: 'assistant';
+      content?: string;
+    };
+    finish_reason: string | null;
+  }>;
+  usage?: {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;

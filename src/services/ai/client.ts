@@ -60,7 +60,7 @@ export class AIClient {
   }
 
   /**
-   * 发送聊天请求
+   * 发送聊天请求（非流式）
    */
   async chat(
     messages: ARKChatRequest['messages'],
@@ -104,7 +104,7 @@ export class AIClient {
         }
 
         const data: ARKChatResponse = await response.json();
-        
+
         if (!data.choices || data.choices.length === 0) {
           throw this.createError('EMPTY_RESPONSE', 'API 返回空响应', true);
         }
@@ -112,7 +112,119 @@ export class AIClient {
         return data.choices[0].message.content;
       } catch (error) {
         clearTimeout(timeoutId);
-        
+
+        if (error instanceof Error) {
+          if (error.name === 'AbortError') {
+            throw this.createError('TIMEOUT', '请求超时', true);
+          }
+          throw error;
+        }
+        throw this.createError('UNKNOWN', '未知错误', false);
+      }
+    });
+  }
+
+  /**
+   * 发送聊天请求（流式）
+   * @param messages 消息列表
+   * @param onChunk 每次收到数据块的回调
+   * @param options 可选参数（temperature, max_tokens）
+   */
+  async chatStream(
+    messages: ARKChatRequest['messages'],
+    onChunk: (text: string) => void,
+    options: Partial<Pick<ARKChatRequest, 'temperature' | 'max_tokens'>> = {}
+  ): Promise<string> {
+    if (!this.isAvailable()) {
+      throw this.createError('SERVICE_UNAVAILABLE', 'AI 服务未配置', false);
+    }
+
+    const request: ARKChatRequest = {
+      model: 'ep-20250214203807-lmzv9',
+      messages,
+      temperature: options.temperature ?? 0.7,
+      max_tokens: options.max_tokens ?? 2000,
+      stream: true, // 启用流式
+    };
+
+    return this.executeWithRetry(async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+
+      try {
+        const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.config.apiKey}`,
+          },
+          body: JSON.stringify(request),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw this.createError(
+            'API_ERROR',
+            errorData.message || `API 请求失败: ${response.status}`,
+            response.status >= 500 || response.status === 429
+          );
+        }
+
+        if (!response.body) {
+          throw new Error('ReadableStream not supported by this browser.');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let done = false;
+        let fullText = '';
+        let buffer = '';
+
+        while (!done) {
+          const { value, done: readerDone } = await reader.read();
+          done = readerDone;
+          if (value) {
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || ''; // Keep the last incomplete line
+
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                const dataStr = line.slice(6);
+                if (dataStr === '[DONE]') {
+                  done = true;
+                  break;
+                }
+                if (dataStr.trim() === '') continue;
+
+                try {
+                  const data = JSON.parse(dataStr);
+                  if (data.choices && data.choices[0] && data.choices[0].delta) {
+                    const chunkText = data.choices[0].delta.content || '';
+                    if (chunkText) {
+                      onChunk(chunkText);
+                      fullText += chunkText;
+                    }
+                  }
+                } catch (e) {
+                  console.error('Failed to parse SSE data:', dataStr, e);
+                }
+              }
+            }
+          }
+        }
+
+        if (!fullText) {
+          throw this.createError('EMPTY_RESPONSE', 'API 返回空响应', true);
+        }
+
+        return fullText;
+      } catch (error) {
+        clearTimeout(timeoutId);
+
         if (error instanceof Error) {
           if (error.name === 'AbortError') {
             throw this.createError('TIMEOUT', '请求超时', true);

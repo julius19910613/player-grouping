@@ -17,6 +17,7 @@ import type { ChatMessage as ChatMessageType } from '../types/chat';
 export function ChatView() {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -35,7 +36,9 @@ export function ChatView() {
   useKeyboardShortcut({
     key: SHORTCUTS.FOCUS_INPUT.key,
     handler: () => {
-      inputRef.current?.focus();
+      if (!isLoading) {
+        inputRef.current?.focus();
+      }
     },
     enabled: !isLoading,
   });
@@ -60,36 +63,43 @@ export function ChatView() {
 
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
+    setIsStreaming(false);
     setError(null);
 
     // 屏幕阅读器公告
     screenReader.announce('正在处理您的消息...', 'polite');
 
     try {
-      // 调用 Gemini API
-      const response = await chatService.sendMessage(content);
-      const responseData = response as any;
-
-      // 添加 AI 响应
-      const assistantMessage: ChatMessageType = {
-        id: `msg-${Date.now() + 1}`,
+      // Create empty AI response message container
+      const assistantMessageId = `msg-${Date.now() + 1}`;
+      setMessages(prev => [...prev, {
+        id: assistantMessageId,
         role: 'assistant',
-        content: typeof response === 'string' ? response : responseData.message || response,
+        content: '',
         timestamp: new Date(),
-      };
+      }]);
 
-      setMessages(prev => [...prev, assistantMessage]);
-      
+      // Call Gemini API (streaming)
+      setIsStreaming(true);
+      await chatService.sendMessageStream(content, (chunkText) => {
+        setMessages(prev => prev.map(msg =>
+          msg.id === assistantMessageId
+            ? { ...msg, content: msg.content + chunkText }
+            : msg
+        ));
+      });
+      setIsStreaming(false);
+
       // 屏幕阅读器公告
       screenReader.announce('收到回复', 'polite');
     } catch (err) {
       console.error('Chat error:', err);
-      
+
       const chatError = err as ChatError;
       const errorMessage = chatError.message || '发送消息失败，请重试';
-      
+
       setError(errorMessage);
-      
+
       // 错误提示
       toast.error(errorMessage, {
         description: chatError.retryable ? '可以尝试重新发送' : '请检查网络或稍后再试',
@@ -102,10 +112,11 @@ export function ChatView() {
       // 屏幕阅读器公告
       screenReader.announce(`错误：${errorMessage}`, 'assertive');
 
-      // 移除失败的用户消息
-      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
+      // 移除失败的用户消息和空的 AI 消息
+      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id && msg.id !== assistantMessageId));
     } finally {
       setIsLoading(false);
+      setIsStreaming(false);
     }
   }, []);
 
@@ -113,7 +124,7 @@ export function ChatView() {
   const handleRegenerate = useCallback(() => {
     // 找到最后一条用户消息
     const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user');
-    
+
     if (lastUserMessage) {
       // 移除最后一条 AI 消息
       setMessages(prev => {
@@ -133,7 +144,7 @@ export function ChatView() {
   // 清空对话
   const handleClearChat = useCallback(() => {
     if (messages.length === 0) return;
-    
+
     if (window.confirm('确定要清空所有对话吗？')) {
       setMessages([]);
       setError(null);
@@ -151,7 +162,7 @@ export function ChatView() {
   }, []);
 
   return (
-    <div 
+    <div
       className="flex flex-col h-[calc(100vh-200px)]"
       role="main"
       aria-label="聊天助手"
@@ -166,7 +177,7 @@ export function ChatView() {
             {messages.length > 0 && `${messages.length} 条消息`}
           </span>
         </div>
-        
+
         {messages.length > 0 && (
           <button
             onClick={handleClearChat}
@@ -179,20 +190,20 @@ export function ChatView() {
       </div>
 
       {/* 聊天区域 */}
-      <Card 
+      <Card
         className="flex-1 flex flex-col overflow-hidden"
         aria-labelledby="chat-title"
       >
         {messages.length < 50 ? (
           // 少于 50 条消息，使用普通渲染
-          <div 
+          <div
             className="flex-1 overflow-y-auto p-4 space-y-4"
             role="log"
             aria-label="聊天消息列表"
             aria-live="polite"
           >
             {messages.length === 0 && !isLoading && (
-              <div 
+              <div
                 className="flex items-center justify-center h-full text-center text-muted-foreground"
                 role="status"
               >
@@ -216,7 +227,7 @@ export function ChatView() {
               />
             ))}
 
-            {isLoading && (
+            {isLoading && !isStreaming && (
               <div className="flex justify-start" role="status" aria-label="加载中">
                 <div className="bg-muted rounded-lg p-3">
                   <div className="flex items-center gap-2">
@@ -242,14 +253,15 @@ export function ChatView() {
         <ChatInput
           onSend={handleSend}
           disabled={isLoading}
+          isLoading={isStreaming}
           enableAutocomplete={true}
         />
       </Card>
 
       {/* 键盘快捷键提示 */}
       <div className="text-xs text-muted-foreground text-center mt-2" aria-hidden="true">
-        <kbd className="px-1.5 py-0.5 bg-muted rounded">Enter</kbd> 发送 · 
-        <kbd className="px-1.5 py-0.5 bg-muted rounded">Shift + Enter</kbd> 换行 · 
+        <kbd className="px-1.5 py-0.5 bg-muted rounded">Enter</kbd> 发送 ·
+        <kbd className="px-1.5 py-0.5 bg-muted rounded">Shift + Enter</kbd> 换行 ·
         <kbd className="px-1.5 py-0.5 bg-muted rounded">/</kbd> 快捷命令
       </div>
     </div>
