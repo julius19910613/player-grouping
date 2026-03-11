@@ -217,7 +217,7 @@ export async function getPlayerRecentMatches(
       )
     `)
     .eq('player_id', playerId)
-    .order('matches(date)', { ascending: false })
+    .order('date', { foreignTable: 'matches', ascending: false })
     .limit(limit);
 
   if (statsError) {
@@ -298,7 +298,7 @@ export async function getMatchHistory(
   if (options?.player_name) {
     const filteredMatches = data.filter((match: any) => {
       if (!match.teams) return false;
-      const allPlayers = Object.values(match.teams).flat();
+      const allPlayers = Object.values(match.teams).flat() as string[];
       return allPlayers.some((player: string) =>
         player.toLowerCase().includes(options.player_name!.toLowerCase())
       );
@@ -547,7 +547,7 @@ export async function analyzeMatchPerformance(
       statsQuery = statsQuery.eq('match_id', options.match_id);
     }
     if (options.match_date) {
-      statsQuery = statsQuery.filter('matches', 'eq', { date: options.match_date });
+      statsQuery = statsQuery.eq('matches.date', options.match_date);
     }
 
     const { data: statsData, error: statsError } = await statsQuery;
