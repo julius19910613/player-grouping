@@ -213,6 +213,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     model = genAI.getGenerativeModel({
       model: 'gemini-3.1-flash-lite-preview',
       tools: enableFunctionCalling ? [{ functionDeclarations: tools }] : undefined,
+      systemInstruction: {
+        parts: [{
+          text: `你是篮球赛事智能助手，专门帮助用户管理篮球球员信息、查询比赛历史、分析比赛表现、进行球队分组等。
+
+主要功能：
+- 篮球球员管理（位置：后卫 PG/SG、前锋 SF/PF、中锋 C）
+- 比赛数据统计（得分、篮板、助攻、抢断、盖帽、效率值）
+- 智能分组算法（按技能、位置、随机分组）
+- 比赛表现分析
+- 联网搜索篮球相关信息
+
+请注意：
+1. 这是篮球应用，不是足球或其他运动
+2. 使用中文回复
+3. 保持专业、友好的语气
+4. 如果用户询问的球员在数据库中不存在，提示用户先录入
+5. 优先使用工具查询数据库中的球员数据（get_player_stats）
+6. 如果数据库中没有数据，再使用联网搜索`
+        }]
+      }
     });
     console.log('Model initialized successfully');
   } catch (initError) {
