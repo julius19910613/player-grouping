@@ -260,12 +260,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let streamResult = result as Awaited<ReturnType<typeof model.generateContentStream>>;
         let hasFunctionCall = false;
         let functionCallArgs = null;
+        let functionCallParts = null;
 
         for await (const chunk of streamResult.stream) {
           const functionCalls = chunk.functionCalls();
           if (functionCalls && functionCalls.length > 0) {
             hasFunctionCall = true;
             functionCallArgs = functionCalls[0];
+            functionCallParts = chunk.candidates?.[0]?.content?.parts;
             break; // Stop streaming text, need to execute function
           }
           const text = chunk.text();
@@ -298,7 +300,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ...geminiMessages,
                 {
                   role: 'model',
-                  parts: [{ functionCall: functionCallArgs }],
+                  parts: functionCallParts || [{ functionCall: functionCallArgs }],
                 },
                 functionResponseMessage as any,
               ],

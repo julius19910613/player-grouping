@@ -560,12 +560,27 @@
     }
   ],
   
+  "current_phase": 2,
+  "status": "testing",
+  "current_test_agent": {
+    "session_key": "agent:main:subagent:dec6b66d-641f-4611-9f3d-97985d30e842",
+    "run_id": "e398335d-1c8e-4170-82fd-386e7af8c6ab",
+    "label": "basketball-agent-local-test",
+    "start_time": "2026-03-10T22:36:00+08:00",
+    "expected_end_time": "2026-03-10T23:06:00+08:00",
+    "status": "running"
+  },
   "monitoring": {
-    "cron_job_id": null,
+    "cron_job_id": "2c4e0862-7b88-4c53-9d70-dd9a2767bae3",
     "cron_interval": "5m",
     "heartbeat_timeout_minutes": 30,
-    "last_heartbeat": null,
-    "feishu_notifications": []
+    "last_heartbeat": "2026-03-10T22:50:00+08:00",
+    "feishu_notifications": [
+      {
+        "timestamp": "2026-03-10T22:45:00+08:00",
+        "message": "Cron Job 创建成功，开始监控测试 Agent"
+      }
+    ]
   },
   
   "notes": [
@@ -573,6 +588,11 @@
       "timestamp": "2026-03-09T09:15:00+08:00",
       "phase": 0,
       "message": "设计文档和状态文件已创建，准备开始 Phase 1"
+    },
+    {
+      "timestamp": "2026-03-10T22:36:00+08:00",
+      "phase": 2,
+      "message": "Phase 1-2 本地验证 Agent 已启动（Session: dec6b66d-641f-4611-9f3d-97985d30e842）"
     }
   ]
 }

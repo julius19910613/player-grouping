@@ -334,7 +334,7 @@ function App() {
           onOpenExport={handleExportData}
         />
         
-        <main className="max-w-7xl mx-auto px-4 py-6">
+        <main className="w-full max-w-[95%] mx-auto px-2 py-4">
           {/* 加载状态 */}
           {loading && (
             <Card className="mb-6">

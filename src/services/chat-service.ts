@@ -134,7 +134,7 @@ export class ChatService {
   private async sendToBackendStream(_message: string, onChunk: (text: string) => void): Promise<string> {
     const apiUrl = import.meta.env.PROD
       ? 'https://player-grouping.vercel.app/api/chat'
-      : 'http://localhost:5173/api/chat';
+      : 'http://localhost:3000/api/chat';
 
     const timer = startTimer('chat_api_call_stream', {
       endpoint: '/api/chat',
@@ -228,7 +228,7 @@ export class ChatService {
   private async sendToBackend(_message: string): Promise<any> {
     const apiUrl = import.meta.env.PROD
       ? 'https://player-grouping.vercel.app/api/chat'
-      : 'http://localhost:5173/api/chat';
+      : 'http://localhost:3000/api/chat';
 
     // 开始性能追踪
     const timer = startTimer('chat_api_call', {

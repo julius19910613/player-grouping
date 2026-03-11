@@ -20,6 +20,12 @@ export function ChatView() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 自动滚动到底部
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isStreaming]);
 
   // 全局快捷键：打开聊天（Cmd/Ctrl + K）
   useKeyboardShortcut({
@@ -164,7 +170,7 @@ export function ChatView() {
 
   return (
     <div
-      className="flex flex-col h-[calc(100vh-200px)]"
+      className="flex flex-col h-[calc(100vh-100px)] w-full"
       role="main"
       aria-label="聊天助手"
     >
@@ -238,6 +244,8 @@ export function ChatView() {
                 </div>
               </div>
             )}
+            
+            <div ref={messagesEndRef} />
           </div>
         ) : (
           // 超过 50 条消息，使用虚拟滚动
