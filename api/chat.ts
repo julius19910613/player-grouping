@@ -1,140 +1,81 @@
+/**
+ * Chat API Handler with MCP Integration
+ *
+ * This is the main API endpoint for the chat assistant.
+ * It uses Supabase MCP Server for dynamic tool calling instead of
+ * hardcoded function declarations.
+ *
+ * Security Features:
+ * - RLS policies enforced on database (read-only for anonymous users)
+ * - Input validation with Zod schemas
+ * - Circuit breaker pattern for resilience
+ * - Request timeout (9s) to stay within Vercel limits
+ */
+
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { GoogleGenerativeAI, FunctionDeclaration } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { LRUCache } from 'lru-cache';
+import type { FunctionDeclaration } from '@google/generative-ai';
+import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+
+// MCP Client Manager
+import {
+  getOrCreateMCPManager,
+  MCPClientManager,
+  CircuitBreakerState,
+} from './lib/mcp-client.js';
+
+// Validators
+import {
+  validateInput,
+  safeValidateInput,
+  PlayerQuerySchema,
+  MatchQuerySchema,
+  ListPlayersSchema,
+  ComparePlayersSchema,
+  MatchAnalysisSchema,
+  GroupingSchema,
+  formatZodError,
+} from './lib/validators.js';
+
+// Error handling
+import {
+  MCPError,
+  MCPErrorType,
+  wrapMCPError,
+  isRecoverableError,
+  shouldTriggerFallback,
+} from './lib/errors.js';
+
+// Tool mapper
+import {
+  mcpToolsToGeminiFunctions,
+  createFallbackTools,
+  sanitizeMCPResult,
+  formatMCPResultForGemini,
+  isWriteOperation,
+} from './lib/tool-mapper.js';
+
+// Tracing
+import {
+  getTraceId,
+  createLogger,
+  withTrace,
+} from './lib/tracer.js';
+
+// Legacy db-queries (for fallback)
 import {
   getPlayerBasicInfo,
   getPlayerSkills,
   getPlayerRecentMatches,
   getPlayerAverageStats,
   getMatchHistory,
-  analyzeMatchPerformance
+  analyzeMatchPerformance,
 } from './lib/db-queries.js';
 
-// Tool definitions
-const tools: FunctionDeclaration[] = [
-  {
-    name: "get_player_stats",
-    description: "【优先使用】查询用户私有数据库中的球员信息。这是用户自己录入的球员（如朋友、队友等），包含技能等级、位置等详细数据。当用户询问某个球员时，应优先使用此工具查询。",
-    parameters: {
-      type: "object",
-      properties: {
-        player_name: {
-          type: "string",
-          description: "球员姓名（支持模糊匹配）"
-        },
-        season: {
-          type: "string",
-          description: "赛季（暂未使用，保留参数以兼容）"
-        }
-      },
-      required: ["player_name"]
-    }
-  } as any,
-  {
-    name: "get_match_history",
-    description: "查询比赛历史记录，支持按日期范围、球员筛选",
-    parameters: {
-      type: "object",
-      properties: {
-        player_name: {
-          type: "string",
-          description: "球员姓名（可选，筛选特定球员参与的比赛）"
-        },
-        date_from: {
-          type: "string",
-          description: "起始日期（YYYY-MM-DD，可选）"
-        },
-        date_to: {
-          type: "string",
-          description: "结束日期（YYYY-MM-DD，可选）"
-        },
-        limit: {
-          type: "number",
-          description: "返回数量（默认 10，最大 50）"
-        }
-      }
-    }
-  } as any,
-  {
-    name: "compare_players",
-    description: "对比多名球员的能力和比赛数据",
-    parameters: {
-      type: "object",
-      properties: {
-        player_names: {
-          type: "array",
-          items: {
-            type: "string"
-          },
-          description: "球员姓名列表（2-5 个）"
-        },
-        criteria: {
-          type: "array",
-          items: {
-            type: "string"
-          },
-          description: "对比维度（默认 all）"
-        }
-      },
-      required: ["player_names"]
-    }
-  } as any,
-  {
-    name: "analyze_match_performance",
-    description: "分析单场比赛的整体表现或特定球员表现",
-    parameters: {
-      type: "object",
-      properties: {
-        match_id: {
-          type: "string",
-          description: "比赛ID（可选）"
-        },
-        match_date: {
-          type: "string",
-          description: "比赛日期（YYYY-MM-DD，可选）"
-        },
-        player_name: {
-          type: "string",
-          description: "球员姓名（可选，聚焦特定球员）"
-        },
-        analysis_type: {
-          type: "string",
-          description: "分析类型（默认 overview）"
-        }
-      }
-    }
-  } as any,
-  {
-    name: "calculate_grouping",
-    description: "根据球员技能、位置或随机方式计算球员分组方案",
-    parameters: {
-      type: "object",
-      properties: {
-        players: {
-          type: "array",
-          items: {
-            type: "string"
-          },
-          description: "球员姓名列表"
-        },
-        criteria: {
-          type: "string",
-          enum: ["skill", "position", "random"],
-          description: "分组标准：skill=按技能水平，position=按位置，random=随机分组"
-        }
-      },
-      required: ["players"]
-    }
-  } as any,
-  {
-    name: "list_all_players",
-    description: "列出数据库中所有球员的简要信息（姓名、位置等）。当用户询问所有球员时使用。",
-    parameters: {
-      type: "object",
-      properties: {}
-    }
-  } as any
-];
+// ============================================================================
+// Configuration
+// ============================================================================
 
 // Vercel Function timeout configuration (10s max for Hobby Plan)
 export const config = {
@@ -150,40 +91,408 @@ const rateLimit = new LRUCache<string, number>({
 // Timeout configuration (9 seconds, leaving 1s for response)
 const TIMEOUT_MS = 9000;
 
+// ============================================================================
+// Global State (Vercel warm-reuse pattern)
+// ============================================================================
+
+declare global {
+  var __mcpManager: MCPClientManager | undefined;
+  var __toolsCache: FunctionDeclaration[] | undefined;
+  var __mcpManagerReady: boolean | undefined;
+}
+
+let mcpManager: MCPClientManager | null = null;
+let toolsCache: FunctionDeclaration[] | null = null;
+let mcpManagerReady: boolean = false;
+
+// ============================================================================
+// Initialization
+// ============================================================================
+
+/**
+ * Initialize MCP Manager
+ *
+ * This function is called once per cold start and caches the connection
+ * globally for warm reuse in Vercel serverless environment.
+ */
+async function initMCPManager(logger: ReturnType<typeof createLogger>): Promise<MCPClientManager> {
+  // Reuse global instance if available and ready
+  if (global.__mcpManagerReady && global.__mcpManager && global.__toolsCache) {
+    logger.info('Reusing existing MCP manager from global cache');
+    mcpManager = global.__mcpManager;
+    toolsCache = global.__toolsCache;
+    mcpManagerReady = true;
+    return mcpManager;
+  }
+
+  logger.info('Initializing new MCP Manager');
+
+  try {
+    mcpManager = await getOrCreateMCPManager();
+
+    // Get tools from MCP Server
+    const mcpTools = await mcpManager.getTools();
+
+    // Convert to Gemini format
+    toolsCache = mcpToolsToGeminiFunctions(mcpTools);
+
+    logger.info(`MCP Manager initialized with ${toolsCache.length} tools`, {
+      tools: toolsCache.map((t) => t.name),
+    });
+
+    // Cache globally for warm reuse
+    global.__mcpManager = mcpManager;
+    global.__toolsCache = toolsCache;
+    global.__mcpManagerReady = true;
+    mcpManagerReady = true;
+
+    return mcpManager;
+  } catch (error) {
+    logger.error('Failed to initialize MCP Manager', error);
+    throw error;
+  }
+}
+
+// ============================================================================
+// Tool Execution with MCP
+// ============================================================================
+
+/**
+ * Execute tool call via MCP
+ *
+ * This function handles tool execution with proper validation,
+ * error handling, and fallback logic.
+ */
+async function executeToolViaMCP(
+  toolName: string,
+  args: Record<string, unknown>,
+  logger: ReturnType<typeof createLogger>
+): Promise<any> {
+  logger.info(`Executing tool via MCP: ${toolName}`, { args });
+
+  // Security check: block write operations
+  if (isWriteOperation(toolName)) {
+    logger.warn(`Write operation blocked: ${toolName}`);
+    return {
+      success: false,
+      error: 'Write operations are not allowed',
+      message: '此操作不允许执行',
+    };
+  }
+
+  try {
+    if (!mcpManager || !mcpManagerReady) {
+      throw new Error('MCP Manager not initialized');
+    }
+
+    const result = await mcpManager.callTool(toolName, args);
+    const sanitized = sanitizeMCPResult(result);
+
+    logger.info(`Tool execution successful: ${toolName}`);
+    return formatMCPResultForGemini(sanitized);
+  } catch (error) {
+    const wrapped = wrapMCPError(error);
+    logger.error(`Tool execution failed: ${toolName}`, wrapped);
+
+    // Check if we should trigger fallback
+    if (shouldTriggerFallback(error)) {
+      logger.warn(`Triggering fallback for: ${toolName}`);
+      return await executeToolFallback(toolName, args, logger);
+    }
+
+    return {
+      success: false,
+      error: wrapped.message,
+      type: wrapped.type,
+    };
+  }
+}
+
+/**
+ * Fallback tool execution using legacy Supabase client
+ *
+ * Used when MCP Server is unavailable or circuit breaker is open.
+ */
+async function executeToolFallback(
+  toolName: string,
+  args: Record<string, unknown>,
+  logger: ReturnType<typeof createLogger>
+): Promise<any> {
+  logger.info(`Executing tool via fallback: ${toolName}`);
+
+  try {
+    // Import Supabase client
+    const { createClient } = await import('@supabase/supabase-js');
+
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return {
+        success: false,
+        error: 'Supabase configuration missing',
+        message: '数据库配置缺失',
+      };
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Map tool names to legacy handlers
+    switch (toolName) {
+      case 'supabase-player-grouping.query_players':
+        return await handleQueryPlayers(supabase, args, logger);
+
+      case 'supabase-player-grouping.query_matches':
+        return await handleQueryMatches(supabase, args, logger);
+
+      case 'supabase-player-grouping.query_stats':
+        return await handleQueryStats(supabase, args, logger);
+
+      default:
+        return {
+          success: false,
+          error: `Unknown tool in fallback: ${toolName}`,
+        };
+    }
+  } catch (error) {
+    logger.error('Fallback execution failed', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Fallback execution failed',
+    };
+  }
+}
+
+// ============================================================================
+// Legacy Tool Handlers (for fallback)
+// ============================================================================
+
+async function handleQueryPlayers(
+  supabase: any,
+  args: Record<string, unknown>,
+  logger: ReturnType<typeof createLogger>
+): Promise<any> {
+  // Validate input
+  const validation = safeValidateInput(
+    args.name ? PlayerQuerySchema : ListPlayersSchema,
+    args
+  );
+
+  if (!validation.success) {
+    return {
+      success: false,
+      error: formatZodError(validation.errors),
+    };
+  }
+
+  const validated = validation.data as any;
+
+  // Handle list all players
+  if (!validated.player_name) {
+    const limit = validated.limit || 100;
+    const { data, error } = await supabase
+      .from('players')
+      .select('id, name, position, created_at')
+      .limit(limit);
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return {
+      success: true,
+      data: {
+        players: data || [],
+        count: data?.length || 0,
+      },
+    };
+  }
+
+  // Handle specific player query
+  const basicInfo = await getPlayerBasicInfo(supabase, validated.player_name);
+
+  if (!basicInfo || basicInfo.length === 0) {
+    return {
+      success: false,
+      data: {
+        message: `未找到球员 "${validated.player_name}"`,
+        suggestion: '请确认球员姓名是否正确',
+      },
+    };
+  }
+
+  // Get detailed data for each matching player
+  const playersWithData = await Promise.all(
+    basicInfo.map(async (player: any) => {
+      const skills = await getPlayerSkills(supabase, player.id);
+      const recentMatches = await getPlayerRecentMatches(supabase, player.id, 5);
+      const avgStats = await getPlayerAverageStats(supabase, player.id);
+
+      return {
+        id: player.id,
+        name: player.name,
+        position: player.position,
+        skills: skills || {},
+        recent_matches: recentMatches || [],
+        average_stats: avgStats,
+        created_at: player.created_at,
+      };
+    })
+  );
+
+  return {
+    success: true,
+    data: {
+      players: playersWithData,
+      count: playersWithData.length,
+    },
+  };
+}
+
+async function handleQueryMatches(
+  supabase: any,
+  args: Record<string, unknown>,
+  logger: ReturnType<typeof createLogger>
+): Promise<any> {
+  const validation = safeValidateInput(MatchQuerySchema, args);
+
+  if (!validation.success) {
+    return {
+      success: false,
+      error: formatZodError(validation.errors),
+    };
+  }
+
+  const validated = validation.data as any;
+
+  const result = await getMatchHistory(supabase, validated);
+
+  return {
+    success: true,
+    data: {
+      matches: result,
+      count: result.length,
+    },
+  };
+}
+
+async function handleQueryStats(
+  supabase: any,
+  args: Record<string, unknown>,
+  logger: ReturnType<typeof createLogger>
+): Promise<any> {
+  const validation = safeValidateInput(MatchAnalysisSchema, args);
+
+  if (!validation.success) {
+    return {
+      success: false,
+      error: formatZodError(validation.errors),
+    };
+  }
+
+  const validated = validation.data as any;
+
+  const analysis = await analyzeMatchPerformance(supabase, validated);
+
+  return {
+    success: true,
+    data: analysis,
+  };
+}
+
+// ============================================================================
+// Message Conversion
+// ============================================================================
+
+/**
+ * Convert messages from OpenAI format to Gemini format
+ * Filters empty messages and merges consecutive same-role messages
+ */
+function convertToGeminiFormat(
+  messages: Array<{ role: string; content: string }>
+): Array<{ role: string; parts: Array<{ text: string }> }> {
+  // Filter out empty content
+  const filtered = messages.filter(
+    (msg) => msg.content && msg.content.trim().length > 0
+  );
+
+  if (filtered.length === 0) {
+    return [];
+  }
+
+  // Merge consecutive same-role messages
+  const merged: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+
+  filtered.forEach((msg) => {
+    const role = msg.role === 'assistant' ? 'model' : 'user';
+
+    if (merged.length > 0 && merged[merged.length - 1].role === role) {
+      merged[merged.length - 1].parts[0].text += '\n' + msg.content;
+    } else {
+      merged.push({
+        role,
+        parts: [{ text: msg.content }],
+      });
+    }
+  });
+
+  return merged;
+}
+
+// ============================================================================
+// Main Handler
+// ============================================================================
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const traceId = getTraceId(req.headers as Record<string, string | undefined>);
+  const logger = createLogger(traceId);
+
+  logger.info('Chat API request received', {
+    method: req.method,
+    contentType: req.headers['content-type'],
+  });
+
+  // CORS configuration
   const origin = req.headers.origin || '';
   const isVercelSubdomain = origin.endsWith('.vercel.app');
-  const isLocalhost = origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:');
+  const isLocalhost =
+    origin.startsWith('http://localhost:') ||
+    origin.startsWith('http://127.0.0.1:');
   const isGithubPages = origin === 'https://julius19910613.github.io';
 
   if (isVercelSubdomain || isLocalhost || isGithubPages) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Trace-ID');
 
   // Handle preflight request
   if (req.method === 'OPTIONS') {
+    logger.info('Preflight request handled');
     return res.status(200).end();
   }
 
   // Only allow POST requests
   if (req.method !== 'POST') {
+    logger.warn('Invalid method', { method: req.method });
     return res.status(405).json({
       error: 'Method not allowed',
-      message: '只支持 POST 请求'
+      message: '只支持 POST 请求',
     });
   }
 
   // Rate limiting
-  const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown') as string;
+  const ip = (req.headers['x-forwarded-for'] ||
+    req.socket.remoteAddress ||
+    'unknown') as string;
   const count = rateLimit.get(ip) || 0;
 
   if (count >= 10) {
+    logger.warn('Rate limit exceeded', { ip });
     return res.status(429).json({
       error: 'Too many requests',
       message: '您的请求过于频繁，请 1 分钟后再试',
-      retryAfter: 60
+      retryAfter: 60,
     });
   }
 
@@ -193,34 +502,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { messages, enableFunctionCalling = true, stream = false } = req.body;
 
   if (!messages || !Array.isArray(messages)) {
+    logger.warn('Invalid request body', { hasMessages: !!messages, isArray: Array.isArray(messages) });
     return res.status(400).json({
       error: 'Invalid request',
-      message: '请求格式错误，需要提供 messages 数组'
+      message: '请求格式错误，需要提供 messages 数组',
     });
   }
 
   // Initialize Gemini client
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    console.error('GEMINI_API_KEY not configured');
+    logger.error('GEMINI_API_KEY not configured');
     return res.status(500).json({
       error: 'Internal server error',
-      message: '服务配置错误'
+      message: '服务配置错误',
     });
   }
 
-  console.log('Initializing Gemini with API key length:', apiKey.length);
+  logger.info('Initializing Gemini');
 
-  let genAI;
-  let model;
+  let genAI: GoogleGenerativeAI;
+  let model: any;
 
   try {
     genAI = new GoogleGenerativeAI(apiKey);
-    console.log('GoogleGenerativeAI instance created');
+
+    // Get tools from MCP or use fallback
+    let tools: FunctionDeclaration[] = [];
+    let mcpManagerInstance: MCPClientManager | null = null;
+
+    if (enableFunctionCalling) {
+      try {
+        mcpManagerInstance = await initMCPManager(logger);
+        tools = toolsCache || [];
+
+        // Log circuit breaker state
+        const cbState = mcpManagerInstance.getCircuitBreakerState();
+        if (cbState !== CircuitBreakerState.CLOSED) {
+          logger.warn('Circuit breaker state', { state: cbState });
+        }
+      } catch (mcpError) {
+        logger.error('MCP Manager initialization failed, using fallback tools', mcpError);
+        tools = createFallbackTools();
+      }
+    }
 
     model = genAI.getGenerativeModel({
       model: 'gemini-3.1-flash-lite-preview',
-      tools: enableFunctionCalling ? [{ functionDeclarations: tools }] : undefined,
+      tools: tools.length > 0 ? [{ functionDeclarations: tools }] : undefined,
       systemInstruction: `你是篮球赛事智能助手，专门帮助用户管理篮球球员信息、查询比赛历史、分析比赛表现、进行球队分组等。
 
 主要功能：
@@ -235,30 +564,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 2. 使用中文回复
 3. 保持专业、友好的语气
 4. 如果用户询问的球员在数据库中不存在，提示用户先录入
-5. 优先使用工具查询数据库中的球员数据（get_player_stats）
-6. 如果数据库中没有数据，再使用联网搜索`
+5. 优先使用工具查询数据库中的球员数据
+6. 如果数据库中没有数据，再使用联网搜索`,
     });
-    console.log('Model initialized successfully');
+
+    logger.info('Gemini model initialized', {
+      toolCount: tools.length,
+      functionCallingEnabled: enableFunctionCalling,
+    });
   } catch (initError) {
-    console.error('Failed to initialize Gemini:', initError);
+    logger.error('Failed to initialize Gemini', initError);
     return res.status(500).json({
       error: 'Initialization failed',
       message: 'Gemini API 初始化失败',
-      details: initError instanceof Error ? initError.message : 'Unknown error'
+      details: initError instanceof Error ? initError.message : 'Unknown error',
     });
   }
 
   // Create timeout promise
-  const timeoutPromise = new Promise((_, reject) => {
+  const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => reject(new Error('Timeout')), TIMEOUT_MS);
   });
 
   try {
-    // Convert messages to Gemini format
     const geminiMessages = convertToGeminiFormat(messages);
+    logger.info('Messages converted', { count: geminiMessages.length });
 
+    // Streaming response
     if (stream) {
-      // Set headers for Server-Sent Events
       res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
       res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');
@@ -269,7 +602,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
 
       try {
-        let result = await Promise.race([
+        const childLogger = logger.child('stream');
+
+        let result = (await Promise.race([
           model.generateContentStream({
             contents: geminiMessages,
             generationConfig: {
@@ -277,21 +612,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               maxOutputTokens: 2048,
             },
           }),
-          timeoutPromise
-        ]);
+          timeoutPromise,
+        ])) as any;
 
-        let streamResult = result as Awaited<ReturnType<typeof model.generateContentStream>>;
         let hasFunctionCall = false;
         let functionCallArgs = null;
         let functionCallParts = null;
 
-        for await (const chunk of streamResult.stream) {
+        for await (const chunk of result.stream) {
           const functionCalls = chunk.functionCalls();
           if (functionCalls && functionCalls.length > 0) {
             hasFunctionCall = true;
             functionCallArgs = functionCalls[0];
             functionCallParts = chunk.candidates?.[0]?.content?.parts;
-            break; // Stop streaming text, need to execute function
+            break;
           }
           const text = chunk.text();
           if (text) {
@@ -300,30 +634,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         if (hasFunctionCall && functionCallArgs && enableFunctionCalling) {
-          console.log('Function call during stream:', functionCallArgs.name, functionCallArgs.args);
+          childLogger.info('Function call during stream', {
+            name: functionCallArgs.name,
+          });
 
-          const toolResult = await executeToolCall(
+          const toolResult = await executeToolViaMCP(
             functionCallArgs.name,
-            functionCallArgs.args as Record<string, any>
+            functionCallArgs.args,
+            childLogger
           );
 
           const functionResponseMessage = {
             role: 'function',
-            parts: [{
-              functionResponse: {
-                name: functionCallArgs.name,
-                response: toolResult,
+            parts: [
+              {
+                functionResponse: {
+                  name: functionCallArgs.name,
+                  response: toolResult,
+                },
               },
-            }],
+            ],
           };
 
-          const secondResult = await Promise.race([
+          const secondResult = (await Promise.race([
             model.generateContentStream({
               contents: [
                 ...geminiMessages,
                 {
                   role: 'model',
-                  parts: functionCallParts || [{ functionCall: functionCallArgs }],
+                  parts:
+                    functionCallParts || [{ functionCall: functionCallArgs }],
                 },
                 functionResponseMessage as any,
               ],
@@ -332,26 +672,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 maxOutputTokens: 2048,
               },
             }),
-            timeoutPromise
-          ]);
+            timeoutPromise,
+          ])) as any;
 
-          let secondStreamResult = secondResult as Awaited<ReturnType<typeof model.generateContentStream>>;
-          for await (const chunk of secondStreamResult.stream) {
+          for await (const chunk of secondResult.stream) {
             const text = chunk.text();
             if (text) writeChunk(text);
           }
         }
+
         res.write('data: [DONE]\n\n');
+        childLogger.info('Stream completed');
         return res.end();
       } catch (error) {
-        console.error('Stream error:', error);
+        logger.error('Stream error', error);
         res.write(`data: ${JSON.stringify({ error: 'Stream error' })}\n\n`);
         return res.end();
       }
     }
 
-    // Initial request (non-streaming)
-    let result = await Promise.race([
+    // Non-streaming response
+    let result = (await Promise.race([
       model.generateContent({
         contents: geminiMessages,
         generationConfig: {
@@ -359,42 +700,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           maxOutputTokens: 2048,
         },
       }),
-      timeoutPromise
-    ]);
+      timeoutPromise,
+    ])) as any;
 
-    let response = result as Awaited<ReturnType<typeof model.generateContent>>;
+    let response = result;
 
     // Handle Function Calling
     if (enableFunctionCalling) {
       const functionCall = response.response.functionCalls()?.[0];
 
       if (functionCall) {
-        console.log('Function call:', functionCall.name, functionCall.args);
+        logger.info('Function call detected', { name: functionCall.name });
 
-        // Execute tool
-        const toolResult = await executeToolCall(
+        // Execute tool via MCP
+        const toolResult = await executeToolViaMCP(
           functionCall.name,
-          functionCall.args as Record<string, any>
+          functionCall.args,
+          logger
         );
 
         // Send tool result back to AI
         const functionResponseMessage = {
           role: 'function',
-          parts: [{
-            functionResponse: {
-              name: functionCall.name,
-              response: toolResult,
+          parts: [
+            {
+              functionResponse: {
+                name: functionCall.name,
+                response: toolResult,
+              },
             },
-          }],
+          ],
         };
 
-        result = await Promise.race([
+        result = (await Promise.race([
           model.generateContent({
             contents: [
               ...geminiMessages,
               {
                 role: 'model',
-                parts: response.response.candidates?.[0]?.content?.parts || [{ functionCall }],
+                parts:
+                  response.response.candidates?.[0]?.content?.parts || [
+                    { functionCall },
+                  ],
               },
               functionResponseMessage as any,
             ],
@@ -403,25 +750,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               maxOutputTokens: 2048,
             },
           }),
-          timeoutPromise
-        ]);
+          timeoutPromise,
+        ])) as any;
 
-        response = result as Awaited<ReturnType<typeof model.generateContent>>;
+        response = result;
       }
     }
 
     const text = response.response.text();
 
-    const response_data: any = {
+    const responseData: any = {
       success: true,
       message: text,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
-    return res.status(200).json(response_data);
-
+    logger.info('Response sent successfully');
+    return res.status(200).json(responseData);
   } catch (error: unknown) {
-    console.error('Chat API error:', error);
+    logger.error('Chat API error', error);
 
     // Handle timeout
     if (error instanceof Error && error.message === 'Timeout') {
@@ -432,527 +779,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         fallbackActions: [
           '📊 查看所有球员',
           '🎯 快速分组',
-          '📈 查看统计'
-        ]
+          '📈 查看统计',
+        ],
       });
     }
 
     // Handle API errors
-    if (error && typeof error === 'object' && 'status' in error && (error as any).status === 429) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'status' in error &&
+      (error as any).status === 429
+    ) {
       return res.status(429).json({
         error: 'Rate limit exceeded',
-        message: 'API 调用频率超限，请稍后重试'
+        message: 'API 调用频率超限，请稍后重试',
       });
     }
 
     // Generic error
     return res.status(500).json({
       error: 'Internal server error',
-      message: '服务暂时不可用，请稍后重试'
+      message: '服务暂时不可用，请稍后重试',
     });
-  }
-}
-
-/**
- * Convert messages from OpenAI format to Gemini format
- * Filters empty messages and merges consecutive same-role messages to ensure alternating turn-taking
- */
-function convertToGeminiFormat(messages: Array<{ role: string; content: string }>): Array<{ role: string; parts: Array<{ text: string }> }> {
-  console.log('Converting messages to Gemini format. Input count:', messages.length);
-  
-  // 1. Filter out empty content
-  const filtered = messages.filter(msg => msg.content && msg.content.trim().length > 0);
-  
-  if (filtered.length === 0) {
-    return [];
-  }
-
-  // 2. Merge consecutive same-role messages
-  const merged: Array<{ role: string; parts: Array<{ text: string }> }> = [];
-  
-  filtered.forEach(msg => {
-    const role = msg.role === 'assistant' ? 'model' : 'user';
-    
-    if (merged.length > 0 && merged[merged.length - 1].role === role) {
-      // Append content to existing parts if same role (or just keep last, but merging is safer for context)
-      merged[merged.length - 1].parts[0].text += '\n' + msg.content;
-    } else {
-      merged.push({
-        role,
-        parts: [{ text: msg.content }]
-      });
-    }
-  });
-
-  console.log('Conversion complete. Output count:', merged.length);
-  return merged;
-}
-
-/**
- * Execute tool call on backend
- */
-async function executeToolCall(
-  toolName: string,
-  args: Record<string, any>
-): Promise<any> {
-  console.log(`Executing tool: ${toolName}`, args);
-  try {
-    let result;
-    switch (toolName) {
-      case 'get_player_stats':
-        result = await getPlayerStatsHandler(args.player_name, args.season);
-        break;
-
-      case 'get_match_history':
-        result = await getMatchHistoryHandler(args.player_name, args.date_from, args.date_to, args.limit);
-        break;
-
-      case 'compare_players':
-        result = await comparePlayersHandler(args.player_names, args.criteria);
-        break;
-
-      case 'analyze_match_performance':
-        result = await analyzeMatchPerformanceHandler(args.match_id, args.match_date, args.player_name, args.analysis_type);
-        break;
-
-      case 'calculate_grouping':
-        result = await calculateGrouping(args.players, args.criteria);
-        break;
-
-      case 'list_all_players':
-        result = await listAllPlayersHandler();
-        break;
-
-      default:
-        result = {
-          success: false,
-          error: `未知的工具: ${toolName}`,
-        };
-    }
-    console.log(`Tool ${toolName} execution complete. Success:`, result.success);
-    return result;
-  } catch (error) {
-    console.error(`Error executing tool ${toolName}:`, error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : String(error)
-    };
-  }
-}
-
-/**
- * Get player stats from Supabase database (Optimized)
- */
-async function getPlayerStatsHandler(playerName: string, season?: string): Promise<any> {
-  try {
-    // Import Supabase client
-    const { createClient } = await import('@supabase/supabase-js');
-
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return {
-        success: false,
-        error: 'Supabase configuration missing',
-        message: '数据库配置缺失'
-      };
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // 1. 查询球员基本信息
-    const basicInfoList = await getPlayerBasicInfo(supabase, playerName);
-
-    if (!basicInfoList || basicInfoList.length === 0) {
-      return {
-        success: false,
-        data: {
-          message: `未找到球员 "${playerName}"`,
-          suggestion: '请确认球员姓名是否正确，或先录入球员数据'
-        }
-      };
-    }
-
-    // 2. 查询所有匹配球员的详细数据
-    const playersWithData = await Promise.all(
-      basicInfoList.map(async (player) => {
-        // 查询技能数据
-        const skills = await getPlayerSkills(supabase, player.id);
-
-        // 查询最近 5 场比赛数据
-        const recentMatches = await getPlayerRecentMatches(supabase, player.id, 5);
-
-        // 查询平均统计数据
-        const avgStats = await getPlayerAverageStats(supabase, player.id);
-
-        return {
-          name: player.name,
-          position: player.position,
-          skills: skills || {},
-          recent_matches: recentMatches || [],
-          average_stats: avgStats || {
-            avgPoints: 0,
-            avgRebounds: 0,
-            avgAssists: 0,
-            avgSteals: 0,
-            avgBlocks: 0,
-            avgEfficiency: 0,
-            matchCount: 0
-          },
-          created_at: player.created_at
-        };
-      })
-    );
-
-    return {
-      success: true,
-      data: {
-        message: `找到 ${playersWithData.length} 名匹配的球员`,
-        count: playersWithData.length,
-        players: playersWithData
-      }
-    };
-  } catch (error) {
-    console.error('getPlayerStats error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      message: '查询球员数据时发生错误'
-    };
-  }
-}
-
-/**
- * Get match history from database
- */
-async function getMatchHistoryHandler(playerName?: string, dateFrom?: string, dateTo?: string, limit?: number): Promise<any> {
-  try {
-    const { createClient } = await import('@supabase/supabase-js');
-
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return {
-        success: false,
-        error: 'Supabase configuration missing',
-        message: '数据库配置缺失'
-      };
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const result = await getMatchHistory(supabase, {
-      player_name: playerName,
-      date_from: dateFrom,
-      date_to: dateTo,
-      limit: limit || 10
-    });
-
-    return {
-      success: true,
-      data: {
-        count: result.length,
-        matches: result
-      }
-    };
-  } catch (error) {
-    console.error('getMatchHistory error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      message: '查询比赛历史时发生错误'
-    };
-  }
-}
-
-/**
- * Compare multiple players
- */
-async function comparePlayersHandler(playerNames: string[], criteria?: string[]): Promise<any> {
-  console.log('Comparing players:', playerNames);
-  try {
-    const { createClient } = await import('@supabase/supabase-js');
-
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return {
-        success: false,
-        error: 'Supabase configuration missing',
-        message: '数据库配置缺失'
-      };
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // 1. 查询所有球员的基本信息和技能
-    const players = await Promise.all(
-      playerNames.map(async (name) => {
-        const basicInfoList = await getPlayerBasicInfo(supabase, name);
-        if (!basicInfoList || basicInfoList.length === 0) {
-          return null;
-        }
-
-        const basicInfo = basicInfoList[0];
-        const skills = await getPlayerSkills(supabase, basicInfo.id);
-        const avgStats = await getPlayerAverageStats(supabase, basicInfo.id);
-
-        return {
-          ...basicInfo,
-          skills: skills || {},
-          avg_stats: avgStats || {
-            avgPoints: 0,
-            avgRebounds: 0,
-            avgAssists: 0,
-            avgSteals: 0,
-            avgBlocks: 0,
-            avgEfficiency: 0,
-            matchCount: 0
-          }
-        };
-      })
-    );
-
-    // 过滤掉未找到的球员
-    const validPlayers = players.filter(p => p !== null);
-
-    if (validPlayers.length === 0) {
-      return {
-        success: false,
-        error: '未找到任何球员',
-        message: '请确认球员姓名是否正确'
-      };
-    }
-
-    // 2. 对比分析
-    const comparison: any = {};
-
-    if (validPlayers.length > 1) {
-      // 最佳投手（overall 技能最高）
-      comparison.best_overall = validPlayers.reduce((a: any, b: any) =>
-        (a.skills?.overall || 0) > (b.skills?.overall || 0) ? a : b
-      ).name;
-
-      // 场均得分最高
-      comparison.best_scorer = validPlayers.reduce((a: any, b: any) =>
-        (a.avg_stats?.avgPoints || 0) > (b.avg_stats?.avgPoints || 0) ? a : b
-      ).name;
-
-      // 场均篮板最高
-      comparison.best_rebounder = validPlayers.reduce((a: any, b: any) =>
-        (a.avg_stats?.avgRebounds || 0) > (b.avg_stats?.avgRebounds || 0) ? a : b
-      ).name;
-    }
-
-    return {
-      success: true,
-      data: {
-        players: validPlayers,
-        comparison
-      }
-    };
-  } catch (error) {
-    console.error('comparePlayers error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      message: '对比球员数据时发生错误'
-    };
-  }
-}
-
-/**
- * Analyze match performance
- */
-async function analyzeMatchPerformanceHandler(matchId?: string, matchDate?: string, playerName?: string, analysisType?: string): Promise<any> {
-  try {
-    const { createClient } = await import('@supabase/supabase-js');
-
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return {
-        success: false,
-        error: 'Supabase configuration missing',
-        message: '数据库配置缺失'
-      };
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const analysis = await analyzeMatchPerformance(supabase, {
-      match_id: matchId,
-      match_date: matchDate,
-      player_name: playerName,
-      analysis_type: (analysisType === 'individual' || analysisType === 'team_comparison')
-        ? (analysisType === 'individual' ? 'player_specific' : 'overall')
-        : 'overall'
-    });
-
-    return {
-      success: true,
-      data: analysis
-    };
-  } catch (error) {
-    console.error('analyzeMatchPerformance error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      message: '分析比赛表现时发生错误'
-    };
-  }
-}
-
-/**
- * Calculate player grouping
- */
-async function calculateGrouping(players: string[], criteria: string = 'random'): Promise<any> {
-  if (!players || players.length < 2) {
-    return {
-      success: false,
-      error: '至少需要 2 名球员才能分组',
-    };
-  }
-
-  let groups: string[][];
-
-  switch (criteria) {
-    case 'random':
-      groups = randomGrouping(players);
-      break;
-
-    case 'skill':
-      groups = skillBasedGrouping(players);
-      break;
-
-    case 'position':
-      groups = positionBasedGrouping(players);
-      break;
-
-    default:
-      groups = randomGrouping(players);
-  }
-
-  return {
-    success: true,
-    data: {
-      criteria,
-      totalPlayers: players.length,
-      groupCount: groups.length,
-      groups: groups.map((group, index) => ({
-        groupNumber: index + 1,
-        players: group,
-      })),
-    },
-  };
-}
-
-/**
- * Random grouping
- */
-function randomGrouping(players: string[]): string[][] {
-  const shuffled = [...players].sort(() => Math.random() - 0.5);
-  const groupSize = Math.ceil(shuffled.length / 2);
-
-  return [
-    shuffled.slice(0, groupSize),
-    shuffled.slice(groupSize),
-  ].filter(group => group.length > 0);
-}
-
-/**
- * Skill-based grouping (simplified)
- */
-function skillBasedGrouping(players: string[]): string[][] {
-  const team1: string[] = [];
-  const team2: string[] = [];
-
-  players.forEach((player, index) => {
-    if (index % 2 === 0) {
-      team1.push(player);
-    } else {
-      team2.push(player);
-    }
-  });
-
-  return [team1, team2].filter(team => team.length > 0);
-}
-
-/**
- * Position-based grouping (simplified)
- */
-function positionBasedGrouping(players: string[]): string[][] {
-  const mid = Math.ceil(players.length / 2);
-
-  return [
-    players.slice(0, mid),
-    players.slice(mid),
-  ].filter(group => group.length > 0);
-}
-
-/**
- * List all players from database
- */
-async function listAllPlayersHandler(): Promise<any> {
-  try {
-    const { createClient } = await import('@supabase/supabase-js');
-
-    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseKey) {
-      return {
-        success: false,
-        error: 'Supabase configuration missing',
-        message: '数据库配置缺失'
-      };
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data, error } = await supabase
-      .from('players')
-      .select('name, position, created_at')
-      .order('name', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching players:', error);
-      return {
-        success: false,
-        error: error.message,
-        message: '查询球员列表时发生错误'
-      };
-    }
-
-    if (!data || data.length === 0) {
-      return {
-        success: true,
-        data: {
-          message: '数据库中暂无球员数据',
-          count: 0,
-          players: []
-        }
-      };
-    }
-
-    return {
-      success: true,
-      data: {
-        message: `找到 ${data.length} 名球员`,
-        count: data.length,
-        players: data
-      }
-    };
-  } catch (error) {
-    console.error('listAllPlayers error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      message: '查询球员列表时发生错误'
-    };
   }
 }
