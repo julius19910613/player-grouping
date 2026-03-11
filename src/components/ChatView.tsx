@@ -67,7 +67,16 @@ export function ChatView() {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    // Create AI response message ID
+    const assistantMessageId = `msg-${Date.now() + 1}`;
+    const assistantMessage: ChatMessageType = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, userMessage, assistantMessage]);
     setIsLoading(true);
     setIsStreaming(false);
     setError(null);
@@ -75,17 +84,7 @@ export function ChatView() {
     // 屏幕阅读器公告
     screenReader.announce('正在处理您的消息...', 'polite');
 
-    // Create AI response message ID outside try block for cleanup
-    const assistantMessageId = `msg-${Date.now() + 1}`;
-
     try {
-      setMessages(prev => [...prev, {
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        timestamp: new Date(),
-      }]);
-
       // Call Gemini API (streaming)
       setIsStreaming(true);
       await chatService.sendMessageStream(content, (chunkText) => {
@@ -234,17 +233,6 @@ export function ChatView() {
               />
             ))}
 
-            {isLoading && !isStreaming && (
-              <div className="flex justify-start" role="status" aria-label="加载中">
-                <div className="bg-muted rounded-lg p-3">
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
-                    <span className="text-sm text-muted-foreground">思考中...</span>
-                  </div>
-                </div>
-              </div>
-            )}
-            
             <div ref={messagesEndRef} />
           </div>
         ) : (

@@ -7,17 +7,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Development
 npm run dev              # Start dev server (localhost:5173)
+npm run dev:vercel      # Start Vercel dev with serverless functions
 npm run build            # Build for production (tsc + vite)
 npm run preview          # Preview production build
 npm run lint             # Run ESLint
 
 # Testing
-npm test                 # Run all tests
+npm test                 # Run all tests (Vitest + jsdom)
 npm run test:coverage    # Generate coverage report (v8 provider)
 npm run test:watch       # Run tests in watch mode
 
 # Deployment
 npm run deploy           # Build and deploy to GitHub Pages
+# For Vercel: Configure environment variables in Vercel dashboard and deploy via git push
 
 # Utilities
 npm run backup           # Backup LocalStorage via tsx script
@@ -31,22 +33,36 @@ This is a React 19 + TypeScript + Vite application for basketball player groupin
 
 ### Data Layer Architecture
 
-The app uses a three-tier data storage system with automatic fallback:
+The app uses Supabase as the primary data source with repository pattern for abstraction.
 
-1. **Primary**: SQLite (sql.js WebAssembly) with IndexedDB persistence
-2. **Fallback**: LocalStorage (when SQLite fails)
-3. **Cloud**: Supabase (optional, requires env vars)
+**Current Repository Configuration:**
+- **Players**: Forced to use Supabase (`createPlayerRepository()` always returns `SupabasePlayerRepository`)
+- **Grouping History**: Uses Supabase if configured, falls back to SQLite
+- **Match Data**: Uses Supabase if configured, falls back to SQLite
 
-**Repository Pattern:**
-- `PlayerRepository` / `HybridPlayerRepository` / `SupabasePlayerRepository`
-- `GroupingRepository` / `HybridGroupingRepository` / `SupabaseGroupingRepository`
-- Factory pattern via `createPlayerRepository('hybrid'|'supabase'|'sqlite')`
+**Repository Classes:**
+- `PlayerRepository` - SQLite implementation (base class)
+- `SupabasePlayerRepository` - Supabase cloud implementation (used by default)
+- `GroupingRepository` - Grouping history (SQLite)
+- `SupabaseGroupingRepository` - Grouping history (Supabase)
+- `MatchRepository` - Match records
+- `PlayerMatchStatsRepository` - Player match statistics
+- `SkillAdjustmentRepository` - Skill rating adjustments
+- `PlayerVideoRepository` - Player video records
 
-**Hybrid Repository Behavior:**
-- Network available: Read from Supabase, update local SQLite cache
-- Network unavailable: Fallback to SQLite, queue writes for sync
-- Automatic sync when network recovers
-- Conflict resolution: `latest_wins` strategy (configurable)
+**Factory Pattern:**
+```typescript
+import { playerRepository, groupingRepository, createPlayerRepository, createGroupingRepository } from '@/repositories';
+
+// Use default instances (recommended)
+await playerRepository.findAll();
+
+// Or create new instances with specific data source
+const customPlayerRepo = createPlayerRepository(); // Always returns SupabasePlayerRepository
+const customGroupingRepo = createGroupingRepository('sqlite'); // Falls back to SQLite if Supabase unavailable
+```
+
+**Note**: The factory in `src/repositories/repository.factory.ts` currently forces Supabase for players. The hybrid pattern (SQLite + Supabase with offline sync) exists in code but is not the active configuration.
 
 ### Key Services
 
@@ -55,15 +71,28 @@ The app uses a three-tier data storage system with automatic fallback:
 | `DatabaseService` | `src/services/database.ts` | SQLite + IndexedDB + LocalStorage management with debounced saves |
 | `AuthService` | `src/lib/auth.ts` | Anonymous auth for Supabase |
 | `NetworkStatusService` | `src/lib/network-status.ts` | Online/offline detection |
+| `ChatService` | `src/services/chat-service.ts` | AI chat functionality with streaming responses |
+| `AiService` | `src/services/ai/index.ts` | AI-powered skill suggestions and grouping optimization |
+| `SkillSuggestionService` | `src/services/ai/skill-suggestion.service.ts` | AI-driven skill rating recommendations |
+| `GroupingOptimizationService` | `src/services/ai/grouping-optimization.service.ts` | AI-powered team balance optimization |
+| `MonitoringService` | `src/services/monitoring-service.ts` | API usage monitoring and error tracking |
+| `FeedbackService` | `src/services/feedback-service.ts` | User feedback collection (thumbs up/down) |
+| `RatingHistoryService` | `src/services/rating-history.service.ts` | Track skill rating changes over time |
+| `MatchAnalysisService` | `src/services/match-analysis.service.ts` | Analyze match results and trends |
+| `MatchImportService` | `src/services/match-import.service.ts` | Import match data from external sources |
 
 ### Database Schema
 
-**SQLite tables:**
-- `players` - Basic player info (id, name, position, timestamps)
-- `player_skills` - 19 skill ratings (1-99) plus auto-calculated overall
-- `grouping_history` - Team groupings with JSON data payload
+**SQLite/Supabase tables:**
+- `players` - Basic player info (id, name, position, created_at, updated_at)
+- `player_skills` - 19 skill ratings (two_point_shot, three_point_shot, free_throw, passing, ball_control, court_vision, perimeter_defense, interior_defense, steals, blocks, offensive_rebound, defensive_rebound, speed, strength, stamina, vertical, basketball_iq, teamwork, clutch) plus auto-calculated overall
+- `grouping_history` - Team groupings with JSON data payload (mode, team_count, player_count, balance_score, data, note)
+- `matches` - Match records (date, mode, winner, created_at, updated_at)
+- `player_match_stats` - Player statistics per match (match_id, player_id, team, points, rebounds, assists, etc.)
+- `skill_adjustments` - Skill rating adjustments (player_id, adjustment_type, old_value, new_value, reason, status, created_at)
+- `player_videos` - Player video recordings (player_id, video_type, video_url, status, recorded_at, created_at)
 
-**Supabase tables** (when configured): Same schema with RLS policies
+**Supabase tables** (when configured): Same schema with RLS (Row Level Security) policies for anonymous auth.
 
 ## Type System
 
@@ -71,13 +100,23 @@ The app uses a three-tier data storage system with automatic fallback:
 - `Player` - Complete player record with skills
 - `BasketballPosition` - PG/SG/SF/PF/C/UTILITY
 - `BasketballSkills` - 19 skill fields (2pt/3pt/FT, passing, defense, rebounds, physical, IQ, etc.)
-- `BasketballTeam`, `BasketballTeamStats` - Team/grouping results
+- `Team`, `GroupingStrategy`, `GroupingConfig` - Team/grouping results and configuration
+- `Match`, `MatchMode`, `MatchWinner` - Match records and results
+- `PlayerMatchStats` - Individual player statistics per match
+- `SkillAdjustment`, `AdjustmentType`, `AdjustmentStatus` - Skill rating changes
+- `PlayerVideo`, `VideoType`, `VideoStatus` - Player video recordings
+- `ChatMessage`, `ChatRole` - AI chat messages (see `src/types/chat.ts`)
 
 **Path alias**: Use `@/` for imports from `src/` directory (configured in both tsconfig and vitest.config).
 
 ## Grouping Algorithm
 
-Located in `src/utils/basketballGroupingAlgorithm.ts`:
+Located in `src/utils/groupingAlgorithm.ts` (primary implementation):
+- `groupPlayers()` - Main grouping function with config-based strategy
+- `calculateBalance()` - Returns balance score (0-100, higher = better)
+- `balanceTeams()` - Optimizes team balance through player swaps
+
+Legacy implementation at `src/utils/basketballGroupingAlgorithm.ts`:
 - `groupFor5v5()` - Standard 5v5 with position balancing
 - `groupFor3v3()` - 3v3 mode with combined position groups
 - `calculateBalanceScore()` - Returns standard deviation of team scores
@@ -87,15 +126,107 @@ Algorithm uses snake draft pattern with position requirements and iteratively sw
 
 ## Component Organization
 
-**Main entry**: `src/App.tsx` - Tab-based navigation (players/grouping/games)
+**Main entry**: `src/App.tsx` - React Router-based navigation
+
+**Routes:**
+- `/` - Chat view (AI assistant, default route)
+- `/players` - Player management with cards, search, and import/export
+- `/grouping` - Advanced grouping tool with drag-and-drop
 
 **Key component patterns:**
-- Forms use `react-hook-form` + `zod` validation
+- Forms use controlled state patterns (no react-hook-form/zod in current codebase)
 - UI components from `shadcn/ui` (Radix UI primitives)
 - SAP Fiori-inspired `ShellBar` for navigation
-- Dialog-based workflows (Add Player, Import Wizard, etc.)
+- Dialog-based workflows (Add Player, Import Wizard, Player Detail)
+
+**Chat Components:**
+- `ChatView` - Main chat interface with message list and input
+- `ChatMessage` - Individual message display with markdown rendering
+- `MessageList` / `MessageListVirtualized` - Message display with virtualization
+- `ChatInput` - Message input with function call support
+- `FeedbackButtons` - Thumbs up/down for AI responses
+- `MonitoringDashboard` - API usage and error statistics
+
+**Import/Export Components:**
+- `ImportWizard` - Multi-step wizard for importing players/games
+- `PlayerImporter` - CSV/Excel file import
+
+**Player Components:**
+- `PlayerCard` - Individual player display with skills
+- `PlayerForm` / `PlayerFormDialog` - Add/edit player forms
+- `PlayerDetailDialog` - Detailed player information view
+- `PlayerSelection` - Multi-select for grouping
+- `DragDropGrouping` - Drag-and-drop team organization
+
+**Analysis Components:**
+- `SkillRadarChart` - Radar chart for player skills
+- `TeamComparisonChart` - Team skill comparison
+- `RatingHistoryChart` - Skill rating over time
+- `AISuggestionPanel` - AI-powered skill suggestions
 
 **Testing**: Component tests use `@testing-library/react`. Setup file at `src/test/setup.ts` extends Vitest with jest-dom matchers.
+
+## Chat & AI Features
+
+The app includes an AI-powered chat assistant for basketball-related queries and data analysis.
+
+### Chat System
+
+**Service**: `ChatService` in `src/services/chat-service.ts`
+- Streaming responses from AI providers (Gemini/Doubao)
+- Function calling for data queries (player stats, grouping suggestions)
+- Context-aware multi-turn conversations
+- Error handling and retry logic
+
+**AI Client**: `GeminiClient` in `src/lib/gemini-client.ts`
+- Google Gemini API integration
+- Stream-based response handling
+- Tool/function call support
+
+### AI Services
+
+**Skill Suggestion Service** (`src/services/ai/skill-suggestion.service.ts`):
+- AI-powered skill rating recommendations
+- Analyzes player performance data
+- Suggests balanced skill distributions
+
+**Grouping Optimization Service** (`src/services/ai/grouping-optimization.service.ts`):
+- AI-powered team balance optimization
+- Considers player roles and team chemistry
+- Generates alternative grouping strategies
+
+### Chat Components
+
+Located in `src/components/chat/`:
+- `ChatView` - Main chat interface
+- `ChatMessage` - Message display with markdown
+- `ToolCallMessage` - Function call visualization
+- `SearchResultDisplay` - Web search results
+
+### Monitoring & Feedback
+
+**MonitoringService** (`src/services/monitoring-service.ts`):
+- Tracks API call counts and costs
+- Monitors error rates and response times
+- Stores metrics in IndexedDB for persistence
+
+**FeedbackService** (`src/services/feedback-service.ts`):
+- Collects user feedback (thumbs up/down)
+- Aggregates feedback statistics
+- Supports detailed feedback submission
+
+### Environment Variables for AI
+
+```bash
+# Required for AI features
+VITE_ARK_API_KEY=your-ark-api-key          # Doubai/Volcano Engine for AI
+VITE_ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+
+# Required for web search in chat
+VITE_BRAVE_SEARCH_API_KEY=your-brave-key    # Brave Search API
+```
+
+If AI services are not configured, the chat assistant will fallback to rule-based responses or display appropriate error messages.
 
 ## Component Library (shadcn/ui)
 
@@ -175,7 +306,7 @@ type ButtonProps = VariantProps<typeof buttonVariants> & { ... }
 ### Available Components
 
 Located in `src/components/ui/`:
-- Form: `input`, `select`, `checkbox`, `slider`, `label`
+- Form: `input`, `select`, `checkbox`, `slider`, `label`, `textarea`
 - Layout: `card`, `separator`, `tabs`
 - Feedback: `alert`, `dialog`, `dropdown-menu`, `toast` (via `sonner`)
 - Data: `badge`, `avatar`, `progress`, `skeleton`, `table`
@@ -260,12 +391,62 @@ Semantic tokens automatically handle light/dark themes:
 ## Environment Configuration
 
 **Required for Supabase cloud sync:** Copy `.env.example` to `.env.local`:
-```
+```bash
+# Supabase (required for data persistence)
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+
+# AI Services (optional, for chat assistant)
+VITE_ARK_API_KEY=your-ark-api-key
+VITE_ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+
+# Web Search (optional, for chat to search latest basketball info)
+VITE_BRAVE_SEARCH_API_KEY=your-brave-search-api-key
+
+# Deployment platform specific (see Deployment section below)
+VITE_BASE_URL=/player-grouping/  # GitHub Pages (default for production)
 ```
 
-If not configured, app automatically uses local SQLite/LocalStorage.
+If Supabase is not configured, the app will display errors as it's currently required for player data. Unlike earlier versions, there's no automatic fallback to LocalStorage.
+
+## Deployment
+
+This project supports multiple deployment platforms:
+
+### GitHub Pages
+- **Base Path**: `/player-grouping/`
+- **Build Command**: `npm run build` (includes predeploy script)
+- **Deploy Command**: `npm run deploy` (uses gh-pages)
+- **Environment Variables**: Configure in GitHub Actions secrets:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
+  - `VITE_ARK_API_KEY` (optional)
+  - `VITE_BRAVE_SEARCH_API_KEY` (optional)
+- **VITE_BASE_URL**: Set to `/player-grouping/` in GitHub Actions
+
+### Vercel
+- **Base Path**: `/` (root)
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+- **Environment Variables**: Configure in Vercel dashboard under Project Settings → Environment Variables:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
+  - `VITE_ARK_API_KEY` (optional)
+  - `VITE_BRAVE_SEARCH_API_KEY` (optional)
+- **Note**: For local development with Vercel, use `npm run dev:vercel`
+
+### Cloudflare Pages
+- **Base Path**: `/` (root, automatically configured)
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+- **Environment Variables**: Configure in Cloudflare Pages dashboard
+
+### Local Development
+- **Base Path**: `/` (root)
+- No VITE_BASE_URL needed
+- Copy `.env.example` to `.env.local` and configure variables
+
+**Note**: The `VITE_BASE_URL` environment variable controls the base path for static assets. The Vite config (vite.config.ts) automatically selects the appropriate base path based on the deployment platform or environment variable.
 
 ## Data Migration
 
@@ -478,10 +659,15 @@ import type { Player, BasketballPosition } from '@/types';
 
 ## Important Notes
 
-- **SQLite initialization** is async - components must handle loading states
-- **Debounced saves**: Database writes are debounced by 1 second for performance
+- **Supabase is required**: Player data is stored in Supabase; the app requires `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to function
+- **Supabase forced for players**: The repository factory forces Supabase for player data (not hybrid/SQLite)
 - **Type safety**: Strict TypeScript enabled; no implicit any
-- **Test exclusions**: `tsconfig.app.json` excludes `src/**/__tests__`, `src/test`, `src/examples`
+- **Test exclusions**: `tsconfig.json` excludes `src/**/__tests__`, `src/test`, `src/examples`, `docs`, and test files
 - **React 19**: Using latest React with concurrent features
 - **Component library**: shadcn/ui components are copied to project, not installed via npm
 - **CSS**: Tailwind v4 with Vite plugin - no tailwind.config.js needed for most cases
+- **React Router**: App uses `react-router-dom` for navigation, not tab-based navigation
+- **AI Features**: Chat, skill suggestions, and grouping optimization require `VITE_ARK_API_KEY`
+- **Web Search**: Chat web search requires `VITE_BRAVE_SEARCH_API_KEY`
+- **Path Alias**: Use `@/` for imports from `src/` directory (configured in tsconfig and vitest)
+- **Testing**: Vitest with jsdom environment; setup file at `src/test/setup.ts`

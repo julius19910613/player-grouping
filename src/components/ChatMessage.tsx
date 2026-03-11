@@ -59,8 +59,13 @@ export const ChatMessage = memo<ChatMessageProps>(
           {/* 消息内容 */}
           {isUser ? (
             <p className="whitespace-pre-wrap">{message.content}</p>
-          ) : (
+          ) : message.content ? (
             <MarkdownRenderer content={message.content} />
+          ) : (
+            <div className="flex items-center gap-2 text-muted-foreground italic py-1">
+              <div className="animate-spin h-3 w-3 border-2 border-muted-foreground border-t-transparent rounded-full" />
+              <span>思考中...</span>
+            </div>
           )}
 
           {/* 时间戳和操作按钮 */}

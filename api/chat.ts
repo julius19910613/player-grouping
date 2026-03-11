@@ -125,6 +125,14 @@ const tools: FunctionDeclaration[] = [
       },
       required: ["players"]
     }
+  } as any,
+  {
+    name: "list_all_players",
+    description: "列出数据库中所有球员的简要信息（姓名、位置等）。当用户询问所有球员时使用。",
+    parameters: {
+      type: "object",
+      properties: {}
+    }
   } as any
 ];
 
@@ -447,31 +455,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 /**
  * Convert messages from OpenAI format to Gemini format
+ * Filters empty messages and merges consecutive same-role messages to ensure alternating turn-taking
  */
 function convertToGeminiFormat(messages: Array<{ role: string; content: string }>): Array<{ role: string; parts: Array<{ text: string }> }> {
-  return messages.map(msg => {
-    if (msg.role === 'user') {
-      return {
-        role: 'user',
+  console.log('Converting messages to Gemini format. Input count:', messages.length);
+  
+  // 1. Filter out empty content
+  const filtered = messages.filter(msg => msg.content && msg.content.trim().length > 0);
+  
+  if (filtered.length === 0) {
+    return [];
+  }
+
+  // 2. Merge consecutive same-role messages
+  const merged: Array<{ role: string; parts: Array<{ text: string }> }> = [];
+  
+  filtered.forEach(msg => {
+    const role = msg.role === 'assistant' ? 'model' : 'user';
+    
+    if (merged.length > 0 && merged[merged.length - 1].role === role) {
+      // Append content to existing parts if same role (or just keep last, but merging is safer for context)
+      merged[merged.length - 1].parts[0].text += '\n' + msg.content;
+    } else {
+      merged.push({
+        role,
         parts: [{ text: msg.content }]
-      };
-    } else if (msg.role === 'assistant') {
-      return {
-        role: 'model',
-        parts: [{ text: msg.content }]
-      };
-    } else if (msg.role === 'function') {
-      // Function results
-      return {
-        role: 'function',
-        parts: [{ text: JSON.stringify(msg.content) }]
-      };
+      });
     }
-    return {
-      role: 'user',
-      parts: [{ text: msg.content || '' }]
-    };
   });
+
+  console.log('Conversion complete. Output count:', merged.length);
+  return merged;
 }
 
 /**
@@ -481,27 +495,48 @@ async function executeToolCall(
   toolName: string,
   args: Record<string, any>
 ): Promise<any> {
-  switch (toolName) {
-    case 'get_player_stats':
-      return await getPlayerStatsHandler(args.player_name, args.season);
+  console.log(`Executing tool: ${toolName}`, args);
+  try {
+    let result;
+    switch (toolName) {
+      case 'get_player_stats':
+        result = await getPlayerStatsHandler(args.player_name, args.season);
+        break;
 
-    case 'get_match_history':
-      return await getMatchHistoryHandler(args.player_name, args.date_from, args.date_to, args.limit);
+      case 'get_match_history':
+        result = await getMatchHistoryHandler(args.player_name, args.date_from, args.date_to, args.limit);
+        break;
 
-    case 'compare_players':
-      return await comparePlayersHandler(args.player_names, args.criteria);
+      case 'compare_players':
+        result = await comparePlayersHandler(args.player_names, args.criteria);
+        break;
 
-    case 'analyze_match_performance':
-      return await analyzeMatchPerformanceHandler(args.match_id, args.match_date, args.player_name, args.analysis_type);
+      case 'analyze_match_performance':
+        result = await analyzeMatchPerformanceHandler(args.match_id, args.match_date, args.player_name, args.analysis_type);
+        break;
 
-    case 'calculate_grouping':
-      return await calculateGrouping(args.players, args.criteria);
+      case 'calculate_grouping':
+        result = await calculateGrouping(args.players, args.criteria);
+        break;
 
-    default:
-      return {
-        success: false,
-        error: `未知的工具: ${toolName}`,
-      };
+      case 'list_all_players':
+        result = await listAllPlayersHandler();
+        break;
+
+      default:
+        result = {
+          success: false,
+          error: `未知的工具: ${toolName}`,
+        };
+    }
+    console.log(`Tool ${toolName} execution complete. Success:`, result.success);
+    return result;
+  } catch (error) {
+    console.error(`Error executing tool ${toolName}:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
   }
 }
 
@@ -636,6 +671,7 @@ async function getMatchHistoryHandler(playerName?: string, dateFrom?: string, da
  * Compare multiple players
  */
 async function comparePlayersHandler(playerNames: string[], criteria?: string[]): Promise<any> {
+  console.log('Comparing players:', playerNames);
   try {
     const { createClient } = await import('@supabase/supabase-js');
 
@@ -856,4 +892,67 @@ function positionBasedGrouping(players: string[]): string[][] {
     players.slice(0, mid),
     players.slice(mid),
   ].filter(group => group.length > 0);
+}
+
+/**
+ * List all players from database
+ */
+async function listAllPlayersHandler(): Promise<any> {
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return {
+        success: false,
+        error: 'Supabase configuration missing',
+        message: '数据库配置缺失'
+      };
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { data, error } = await supabase
+      .from('players')
+      .select('name, position, created_at')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching players:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: '查询球员列表时发生错误'
+      };
+    }
+
+    if (!data || data.length === 0) {
+      return {
+        success: true,
+        data: {
+          message: '数据库中暂无球员数据',
+          count: 0,
+          players: []
+        }
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        message: `找到 ${data.length} 名球员`,
+        count: data.length,
+        players: data
+      }
+    };
+  } catch (error) {
+    console.error('listAllPlayers error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      message: '查询球员列表时发生错误'
+    };
+  }
 }

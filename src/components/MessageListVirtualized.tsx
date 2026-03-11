@@ -87,7 +87,14 @@ export function MessageListVirtualized({
               role="article"
               aria-label={`${isUser ? '用户' : '助手'}消息`}
             >
-              <p className="whitespace-pre-wrap">{msg.content}</p>
+              {msg.content ? (
+                <p className="whitespace-pre-wrap">{msg.content}</p>
+              ) : (
+                <div className="flex items-center gap-2 text-muted-foreground italic py-1">
+                  <div className="animate-spin h-3 w-3 border-2 border-muted-foreground border-t-transparent rounded-full" />
+                  <span>思考中...</span>
+                </div>
+              )}
               
               <div className="text-xs opacity-70 mt-1">
                 {msg.timestamp instanceof Date
@@ -98,15 +105,6 @@ export function MessageListVirtualized({
           </div>
         );
       })}
-      
-      {isLoading && (
-        <div className="flex justify-start" data-testid="loading-indicator">
-          <div className="bg-muted rounded-lg p-3 space-y-2">
-            <Skeleton className="h-4 w-[200px]" />
-            <Skeleton className="h-4 w-[160px]" />
-          </div>
-        </div>
-      )}
       
       <div ref={bottomRef} />
     </div>
