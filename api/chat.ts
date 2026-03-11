@@ -213,9 +213,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     model = genAI.getGenerativeModel({
       model: 'gemini-3.1-flash-lite-preview',
       tools: enableFunctionCalling ? [{ functionDeclarations: tools }] : undefined,
-      systemInstruction: {
-        parts: [{
-          text: `你是篮球赛事智能助手，专门帮助用户管理篮球球员信息、查询比赛历史、分析比赛表现、进行球队分组等。
+      systemInstruction: `你是篮球赛事智能助手，专门帮助用户管理篮球球员信息、查询比赛历史、分析比赛表现、进行球队分组等。
 
 主要功能：
 - 篮球球员管理（位置：后卫 PG/SG、前锋 SF/PF、中锋 C）
@@ -231,8 +229,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 4. 如果用户询问的球员在数据库中不存在，提示用户先录入
 5. 优先使用工具查询数据库中的球员数据（get_player_stats）
 6. 如果数据库中没有数据，再使用联网搜索`
-        }]
-      }
     });
     console.log('Model initialized successfully');
   } catch (initError) {
