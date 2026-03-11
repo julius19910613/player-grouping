@@ -8,7 +8,7 @@ import {
   getPlayerAverageStats,
   getMatchHistory,
   analyzeMatchPerformance
-} from './lib/db-queries';
+} from './lib/db-queries.js';
 
 // Tool definitions
 const tools: FunctionDeclaration[] = [
