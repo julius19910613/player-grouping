@@ -143,13 +143,12 @@ const rateLimit = new LRUCache<string, number>({
 const TIMEOUT_MS = 9000;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS configuration
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://player-grouping.vercel.app', 'https://julius19910613.github.io']
-    : ['http://localhost:5173', 'http://localhost:3000'];
-
   const origin = req.headers.origin || '';
-  if (allowedOrigins.includes(origin)) {
+  const isVercelSubdomain = origin.endsWith('.vercel.app');
+  const isLocalhost = origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:');
+  const isGithubPages = origin === 'https://julius19910613.github.io';
+
+  if (isVercelSubdomain || isLocalhost || isGithubPages) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
