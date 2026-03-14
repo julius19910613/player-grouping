@@ -363,12 +363,22 @@ class DatabaseService {
    * 获取最后插入的 ID
    */
   getLastInsertId(): number {
-    if (!this.usingSQLite || !this.db) {
-      throw new DatabaseError('SQLite not available', 'SQLITE_UNAVAILABLE');
+    if (this.usingSQLite && this.db) {
+      const result = this.exec('SELECT last_insert_rowid()');
+      return result[0]?.[0] as number;
     }
 
-    const result = this.exec('SELECT last_insert_rowid()');
-    return result[0]?.[0] as number;
+    // LocalStorage 模式：生成一个递增的 ID
+    // 注意：这只是一个简单的实现，实际应用中需要更复杂的 ID 生成逻辑
+    const data = this.getLocalStorageData();
+    const maxId = Math.max(
+      0,
+      ...Object.keys(data.players).map((key) => {
+        const match = key.match(/\d+$/);
+        return match ? parseInt(match[0], 10) : 0;
+      })
+    );
+    return maxId + 1;
   }
 
   /**

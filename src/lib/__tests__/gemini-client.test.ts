@@ -5,23 +5,27 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { GeminiClient } from '../gemini-client';
 
-// Mock Google Generative AI
-class MockGoogleGenerativeAI {
-  constructor(public apiKey: string) {}
+// Mock Google Generative AI using vi.hoisted to avoid hoisting issues
+const { MockGoogleGenerativeAI } = vi.hoisted(() => {
+  return {
+    MockGoogleGenerativeAI: class {
+      constructor(public apiKey: string) {}
 
-  getGenerativeModel() {
-    return {
-      startChat: () => ({
-        sendMessage: vi.fn().mockResolvedValue({
-          response: {
-            text: () => 'Mock AI response',
-            functionCalls: () => [],
-          },
-        }),
-      }),
-    };
-  }
-}
+      getGenerativeModel() {
+        return {
+          startChat: () => ({
+            sendMessage: vi.fn().mockResolvedValue({
+              response: {
+                text: () => 'Mock AI response',
+                functionCalls: () => [],
+              },
+            }),
+          }),
+        };
+      }
+    }
+  };
+});
 
 vi.mock('@google/generative-ai', () => ({
   GoogleGenerativeAI: MockGoogleGenerativeAI,

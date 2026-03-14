@@ -8,16 +8,58 @@ import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { FunctionDeclaration } from '@google/generative-ai';
 
 /**
+ * Remove MCP-specific JSON Schema fields that Gemini doesn't support
+ *
+ * @param schema - JSON Schema object
+ * @returns Cleaned schema object
+ */
+function removeMcpSpecificFields(schema: any): any {
+  if (!schema || typeof schema !== 'object') {
+    return undefined;
+  }
+
+  const result = { ...schema };
+
+  // Remove fields that Gemini doesn't support
+  const fieldsToRemove = ['$schema', '$id', '$comment', 'additionalProperties', 'allOf', 'anyOf', 'oneOf', 'not'];
+  for (const field of fieldsToRemove) {
+    delete result[field];
+  }
+
+  // Recursively clean nested objects
+  if (result.properties && typeof result.properties === 'object') {
+    result.properties = {};
+    for (const [key, value] of Object.entries(schema.properties || {})) {
+      result.properties[key] = removeMcpSpecificFields(value);
+    }
+  }
+
+  if (result.items && typeof result.items === 'object') {
+    result.items = removeMcpSpecificFields(result.items);
+  }
+
+  // Clean array items if they're an array of schemas
+  if (Array.isArray(result.items)) {
+    result.items = result.items.map((item: any) => removeMcpSpecificFields(item));
+  }
+
+  return result;
+}
+
+/**
  * Convert MCP Tool to Gemini FunctionDeclaration
  *
  * @param tool - MCP Tool object
  * @returns Gemini FunctionDeclaration object
  */
 export function mcpToolToGeminiFunction(tool: Tool): FunctionDeclaration {
+  // First remove MCP-specific fields
+  const cleanedSchema = removeMcpSpecificFields(tool.inputSchema);
+
   return {
     name: tool.name,
     description: tool.description || '',
-    parameters: tool.inputSchema as any,
+    parameters: cleanedSchema,
   };
 }
 
@@ -40,30 +82,25 @@ export function mcpToolsToGeminiFunctions(tools: Tool[]): FunctionDeclaration[] 
 export function createFallbackTools(): FunctionDeclaration[] {
   return [
     {
-      name: 'search_players',
-      description: '搜索球员信息（降级模式）- 在 MCP Server 不可用时使用',
+      name: 'execute_sql',
+      description: '执行 SQL 查询（降级模式）- 在 MCP Server 不可用时使用直接数据库查询',
       parameters: {
         type: 'object',
         properties: {
           query: {
             type: 'string',
-            description: '搜索关键词（球员姓名）',
+            description: 'SQL 查询语句',
           },
         },
         required: ['query'],
       },
     },
     {
-      name: 'get_match_summary',
-      description: '获取比赛摘要（降级模式）- 在 MCP Server 不可用时使用',
+      name: 'list_tables',
+      description: '列出数据库中所有表（降级模式）',
       parameters: {
         type: 'object',
-        properties: {
-          limit: {
-            type: 'number',
-            description: '返回的比赛数量',
-          },
-        },
+        properties: {},
       },
     },
   ];

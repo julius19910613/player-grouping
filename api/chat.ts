@@ -180,11 +180,13 @@ async function executeToolViaMCP(
     };
   }
 
-  try {
-    if (!mcpManager || !mcpManagerReady) {
-      throw new Error('MCP Manager not initialized');
-    }
+  // If MCP Manager is not ready, go directly to fallback
+  if (!mcpManager || !mcpManagerReady) {
+    logger.warn(`MCP Manager not ready, using fallback for: ${toolName}`);
+    return await executeToolFallback(toolName, args, logger);
+  }
 
+  try {
     const result = await mcpManager.callTool(toolName, args);
     const sanitized = sanitizeMCPResult(result);
 
@@ -194,17 +196,9 @@ async function executeToolViaMCP(
     const wrapped = wrapMCPError(error);
     logger.error(`Tool execution failed: ${toolName}`, wrapped);
 
-    // Check if we should trigger fallback
-    if (shouldTriggerFallback(error)) {
-      logger.warn(`Triggering fallback for: ${toolName}`);
-      return await executeToolFallback(toolName, args, logger);
-    }
-
-    return {
-      success: false,
-      error: wrapped.message,
-      type: wrapped.type,
-    };
+    // Always fall back to direct Supabase queries on any error
+    logger.warn(`Triggering fallback for: ${toolName}`);
+    return await executeToolFallback(toolName, args, logger);
   }
 }
 
@@ -218,7 +212,7 @@ async function executeToolFallback(
   args: Record<string, unknown>,
   logger: ReturnType<typeof createLogger>
 ): Promise<any> {
-  logger.info(`Executing tool via fallback: ${toolName}`);
+  logger.info(`Executing tool via fallback: ${toolName}`, { args });
 
   try {
     // Import Supabase client
@@ -237,21 +231,59 @@ async function executeToolFallback(
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Map tool names to legacy handlers
+    // Map tool names to handlers (supports both MCP tool names and legacy names)
     switch (toolName) {
+      // MCP tool: execute_sql - execute a raw SQL query via Supabase RPC
+      case 'execute_sql': {
+        const sql = (args.query || args.sql) as string;
+        if (!sql) {
+          return { success: false, error: 'Missing query parameter' };
+        }
+        logger.info(`Fallback execute_sql: ${sql}`);
+        const { data, error } = await supabase.rpc('execute_sql', { query: sql }).maybeSingle();
+        if (error) {
+          // rpc might not exist, try direct query for simple selects
+          logger.warn('execute_sql RPC failed, trying direct query', { error: error.message });
+          return await handleDirectQuery(supabase, sql, logger);
+        }
+        return { success: true, data };
+      }
+
+      // MCP tool: list_tables - list database tables
+      case 'list_tables': {
+        const { data, error } = await supabase
+          .from('information_schema.tables' as any)
+          .select('table_name')
+          .eq('table_schema', 'public');
+        if (error) {
+          // Fallback: return known table names
+          return {
+            success: true,
+            data: {
+              tables: ['players', 'player_skills', 'matches', 'player_match_stats', 'grouping_history'],
+            },
+          };
+        }
+        return { success: true, data: { tables: data.map((t: any) => t.table_name) } };
+      }
+
+      // Legacy MCP tool names
       case 'supabase-player-grouping.query_players':
+      case 'search_players':
         return await handleQueryPlayers(supabase, args, logger);
 
       case 'supabase-player-grouping.query_matches':
+      case 'get_match_summary':
         return await handleQueryMatches(supabase, args, logger);
 
       case 'supabase-player-grouping.query_stats':
         return await handleQueryStats(supabase, args, logger);
 
       default:
+        logger.warn(`Unknown tool in fallback: ${toolName}`);
         return {
           success: false,
-          error: `Unknown tool in fallback: ${toolName}`,
+          error: `未知的工具: ${toolName}`,
         };
     }
   } catch (error) {
@@ -261,6 +293,188 @@ async function executeToolFallback(
       error: error instanceof Error ? error.message : 'Fallback execution failed',
     };
   }
+}
+// ============================================================================
+// Direct SQL Query Handler (for fallback when RPC not available)
+// ============================================================================
+
+/**
+ * Handle direct SQL queries via Supabase client
+ *
+ * Parses simple SELECT queries and executes via Supabase client API.
+ * Used as last-resort fallback when MCP and execute_sql RPC are unavailable.
+ */
+async function handleDirectQuery(
+  supabase: any,
+  sql: string,
+  logger: ReturnType<typeof createLogger>
+): Promise<any> {
+  logger.info(`handleDirectQuery: ${sql}`);
+
+  try {
+    // Handle COUNT queries
+    const countMatch = sql.match(/SELECT\s+COUNT\(\*\)(?:\s+AS\s+\w+)?\s+FROM\s+(\w+)/i);
+    if (countMatch) {
+      const tableName = countMatch[1];
+      const { count, error } = await supabase
+        .from(tableName)
+        .select('*', { count: 'exact', head: true });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true, data: [{ count }] };
+    }
+
+    // Handle simple SELECT queries with optional WHERE, ORDER BY, LIMIT
+    // This regex captures: columns, table, whereClause, orderBy, limit
+    const selectMatch = sql.match(/SELECT\s+(.+?)\s+FROM\s+(\w+)(?:\s+WHERE\s+(.+?))?(?:\s+ORDER\s+BY\s+(.+?))?(?:\s+LIMIT\s+(\d+))?$/i);
+
+    if (selectMatch) {
+      const [, columns, tableName, whereClause, orderBy, limitStr] = selectMatch;
+      const selectColumns = columns.trim() === '*' ? '*' : columns.trim();
+      let query = supabase.from(tableName).select(selectColumns);
+
+      // Parse and apply WHERE clause
+      if (whereClause) {
+        const filters = parseWhereClause(whereClause, logger);
+        for (const filter of filters) {
+          if (filter.operator === 'ilike') {
+            query = query.ilike(filter.column, filter.value);
+          } else if (filter.operator === 'like') {
+            query = query.like(filter.column, filter.value);
+          } else if (filter.operator === 'eq') {
+            query = query.eq(filter.column, filter.value);
+          } else if (filter.operator === 'neq') {
+            query = query.neq(filter.column, filter.value);
+          } else if (filter.operator === 'gt') {
+            query = query.gt(filter.column, filter.value);
+          } else if (filter.operator === 'gte') {
+            query = query.gte(filter.column, filter.value);
+          } else if (filter.operator === 'lt') {
+            query = query.lt(filter.column, filter.value);
+          } else if (filter.operator === 'lte') {
+            query = query.lte(filter.column, filter.value);
+          }
+        }
+      }
+
+      // Apply ORDER BY
+      if (orderBy) {
+        const orderParts = orderBy.trim().split(/\s+/);
+        const orderColumn = orderParts[0];
+        const ascending = orderParts[1]?.toUpperCase() !== 'DESC';
+        query = query.order(orderColumn, { ascending });
+      }
+
+      // Apply LIMIT
+      const limit = limitStr ? parseInt(limitStr, 10) : 100;
+      query = query.limit(limit);
+
+      const { data, error } = await query;
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true, data: data || [] };
+    }
+
+    // Handle JOIN queries for player with skills
+    // Pattern: SELECT ... FROM players p LEFT JOIN player_skills ps ON p.id = ps.player_id WHERE ...
+    const joinMatch = sql.match(/SELECT\s+(.+?)\s+FROM\s+players\s+(?:\w+\s+)?(?:LEFT\s+)?JOIN\s+player_skills\s+\w+\s+ON\s+[^W]+(?:WHERE\s+(.+?))?(?:\s+ORDER\s+BY\s+(.+?))?(?:\s+LIMIT\s+(\d+))?$/i);
+
+    if (joinMatch) {
+      const [, , whereClause, orderBy, limitStr] = joinMatch;
+      logger.info('Detected JOIN query, using Supabase relation');
+
+      // Use Supabase's embedded select for joins
+      let query = supabase
+        .from('players')
+        .select('*, player_skills(*)');
+
+      // Parse and apply WHERE clause for players table
+      if (whereClause) {
+        const filters = parseWhereClause(whereClause, logger);
+        for (const filter of filters) {
+          if (filter.column.toLowerCase().includes('name')) {
+            if (filter.operator === 'ilike' || filter.operator === 'like') {
+              query = query.ilike('name', filter.value);
+            } else if (filter.operator === 'eq') {
+              query = query.eq('name', filter.value);
+            }
+          }
+        }
+      }
+
+      const limit = limitStr ? parseInt(limitStr, 10) : 10;
+      query = query.limit(limit);
+
+      const { data, error } = await query;
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true, data: data || [] };
+    }
+
+    // If query can't be parsed, return an error with guidance
+    return {
+      success: false,
+      error: `无法在降级模式下解析此 SQL 查询。请尝试更简单的查询。`,
+    };
+  } catch (error) {
+    logger.error('handleDirectQuery failed', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Direct query failed',
+    };
+  }
+}
+
+/**
+ * Parse SQL WHERE clause into filter objects
+ *
+ * Supports: ILIKE, LIKE, =, !=, >, >=, <, <=
+ */
+function parseWhereClause(
+  whereClause: string,
+  logger: ReturnType<typeof createLogger>
+): Array<{ column: string; operator: string; value: any }> {
+  const filters: Array<{ column: string; operator: string; value: any }> = [];
+
+  // Split by AND (simple implementation, doesn't handle complex cases)
+  const conditions = whereClause.split(/\s+AND\s+/i);
+
+  for (const condition of conditions) {
+    // Match: column ILIKE 'value' or column = 'value' etc.
+    const match = condition.match(/(\w+(?:\.\w+)?)\s*(ILIKE|LIKE|=|!=|<>|>=|<=|>|<)\s*'([^']*)'/i);
+
+    if (match) {
+      const [, column, operator, value] = match;
+
+      // Normalize column name (remove table prefix if present)
+      const normalizedColumn = column.includes('.')
+        ? column.split('.')[1]
+        : column;
+
+      // Normalize operator
+      let normalizedOperator = operator.toLowerCase();
+      if (normalizedOperator === '<>') normalizedOperator = 'neq';
+      else if (normalizedOperator === '=') normalizedOperator = 'eq';
+      else if (normalizedOperator === '!=') normalizedOperator = 'neq';
+      else if (normalizedOperator === '>=') normalizedOperator = 'gte';
+      else if (normalizedOperator === '<=') normalizedOperator = 'lte';
+      else if (normalizedOperator === '>') normalizedOperator = 'gt';
+      else if (normalizedOperator === '<') normalizedOperator = 'lt';
+
+      filters.push({
+        column: normalizedColumn,
+        operator: normalizedOperator,
+        value: value,
+      });
+
+      logger.info('Parsed filter', { column: normalizedColumn, operator: normalizedOperator, value });
+    }
+  }
+
+  return filters;
 }
 
 // ============================================================================
@@ -532,17 +746,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let mcpManagerInstance: MCPClientManager | null = null;
 
     if (enableFunctionCalling) {
-      try {
-        mcpManagerInstance = await initMCPManager(logger);
-        tools = toolsCache || [];
+      const mcpEnabled = process.env.ENABLE_MCP !== 'false';
 
-        // Log circuit breaker state
-        const cbState = mcpManagerInstance.getCircuitBreakerState();
-        if (cbState !== CircuitBreakerState.CLOSED) {
-          logger.warn('Circuit breaker state', { state: cbState });
+      if (mcpEnabled) {
+        try {
+          mcpManagerInstance = await initMCPManager(logger);
+          tools = toolsCache || [];
+
+          // Log circuit breaker state
+          const cbState = mcpManagerInstance.getCircuitBreakerState();
+          if (cbState !== CircuitBreakerState.CLOSED) {
+            logger.warn('Circuit breaker state', { state: cbState });
+          }
+        } catch (mcpError) {
+          logger.error('MCP Manager initialization failed, using fallback tools', mcpError);
+          tools = createFallbackTools();
         }
-      } catch (mcpError) {
-        logger.error('MCP Manager initialization failed, using fallback tools', mcpError);
+      } else {
+        logger.info('MCP disabled via ENABLE_MCP=false, using fallback tools');
         tools = createFallbackTools();
       }
     }
@@ -550,22 +771,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     model = genAI.getGenerativeModel({
       model: 'gemini-3.1-flash-lite-preview',
       tools: tools.length > 0 ? [{ functionDeclarations: tools }] : undefined,
-      systemInstruction: `你是篮球赛事智能助手，专门帮助用户管理篮球球员信息、查询比赛历史、分析比赛表现、进行球队分组等。
+      systemInstruction: `你是篮球赛事智能助手，帮助用户管理篮球球员信息、查询比赛数据、分析比赛表现、进行球队分组。
 
-主要功能：
-- 篮球球员管理（位置：后卫 PG/SG、前锋 SF/PF、中锋 C）
-- 比赛数据统计（得分、篮板、助攻、抢断、盖帽、效率值）
-- 智能分组算法（按技能、位置、随机分组）
-- 比赛表现分析
-- 联网搜索篮球相关信息
+可用的数据库工具：
+1. list_tables - 列出数据库表
+2. execute_sql - 执行 SQL 查询（这是最常用的查询工具），参数名为 query（不是 sql）
 
-请注意：
-1. 这是篮球应用，不是足球或其他运动
-2. 使用中文回复
-3. 保持专业、友好的语气
-4. 如果用户询问的球员在数据库中不存在，提示用户先录入
-5. 优先使用工具查询数据库中的球员数据
-6. 如果数据库中没有数据，再使用联网搜索`,
+常用表名：
+- players（球员信息表）
+- player_skills（球员技能表）
+- matches（比赛记录表）
+- player_match_stats（比赛统计表）
+- grouping_history（分组历史表）
+
+调用示例（注意参数名是 query）：
+1. 查询球员数量：execute_sql({ query: "SELECT COUNT(*) AS total FROM players" })
+2. 查询前5个球员：execute_sql({ query: "SELECT id, name, position FROM players ORDER BY created_at DESC LIMIT 5" })
+3. 查询球员详情：execute_sql({ query: "SELECT p.*, ps.* FROM players p LEFT JOIN player_skills ps ON p.id = ps.player_id WHERE p.name = '姓名'" })
+4. 查询比赛：execute_sql({ query: "SELECT * FROM matches ORDER BY date DESC LIMIT 10" })
+5. 查询统计：execute_sql({ query: "SELECT * FROM player_match_stats WHERE match_id = 'xxx'" })
+
+重要规则：
+- 你已经正确连接到数据库，可以直接执行查询，不要说没有权限或无法连接
+- 对于"查询有多少条"这类问题，直接使用 execute_sql 执行 SELECT COUNT(*) FROM 表名
+- 对于"列出前N个"这类问题，直接使用 execute_sql 执行 SELECT ... LIMIT N
+- 不要在调用 list_tables 后停止，要继续调用 execute_sql 完成用户的查询
+- 查询结果为空时，友好提示用户数据库中暂无数据
+- 使用中文回复
+- 这是一个篮球应用，不是足球或其他运动`,
     });
 
     logger.info('Gemini model initialized', {

@@ -6,125 +6,128 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { MatchAnalysisService } from '../match-analysis.service';
 import type { Match, PlayerMatchStats } from '../../types/match';
 
-vi.mock('../../repositories/match.repository', () => {
-  const mockMatches: Match[] = [
-    {
-      id: 'match-1',
-      matchDate: new Date('2026-03-01'),
-      mode: '5v5',
-      teamAScore: 78,
-      teamBScore: 72,
-      winner: 'team_a',
-      teamAPlayers: ['player-1'],
-      teamBPlayers: ['player-2'],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: 'match-2',
-      matchDate: new Date('2026-03-02'),
-      mode: '5v5',
-      teamAScore: 80,
-      teamBScore: 75,
-      winner: 'team_a',
-      teamAPlayers: ['player-1'],
-      teamBPlayers: ['player-2'],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ];
+// Define mock data at module level
+const mockMatches: Match[] = [
+  {
+    id: 'match-1',
+    matchDate: new Date('2026-03-01'),
+    mode: '5v5',
+    teamAScore: 78,
+    teamBScore: 72,
+    winner: 'team_a',
+    teamAPlayers: ['player-1'],
+    teamBPlayers: ['player-2'],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 'match-2',
+    matchDate: new Date('2026-03-02'),
+    mode: '5v5',
+    teamAScore: 80,
+    teamBScore: 75,
+    winner: 'team_a',
+    teamAPlayers: ['player-1'],
+    teamBPlayers: ['player-2'],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];
 
-  return {
-    MatchRepository: class MockMatchRepository {
-      findByPlayerId = vi.fn().mockResolvedValue(mockMatches);
-      findById = vi.fn().mockResolvedValue(mockMatches[0]);
-    },
-  };
-});
+const mockStats: PlayerMatchStats[] = [
+  {
+    id: 'stats-1',
+    matchId: 'match-1',
+    playerId: 'player-1',
+    team: 'team_a',
+    points: 18,
+    rebounds: 5,
+    assists: 8,
+    steals: 3,
+    blocks: 1,
+    turnovers: 2,
+    fouls: 3,
+    minutesPlayed: 40,
+    fieldGoalsMade: 7,
+    fieldGoalsAttempted: 15,
+    threePointersMade: 2,
+    threePointersAttempted: 5,
+    freeThrowsMade: 2,
+    freeThrowsAttempted: 2,
+    plusMinus: 12,
+    efficiencyRating: 20,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 'stats-2',
+    matchId: 'match-1',
+    playerId: 'player-2',
+    team: 'team_b',
+    points: 22,
+    rebounds: 8,
+    assists: 4,
+    steals: 2,
+    blocks: 2,
+    turnovers: 3,
+    fouls: 2,
+    minutesPlayed: 38,
+    fieldGoalsMade: 9,
+    fieldGoalsAttempted: 18,
+    threePointersMade: 1,
+    threePointersAttempted: 4,
+    freeThrowsMade: 3,
+    freeThrowsAttempted: 4,
+    plusMinus: -8,
+    efficiencyRating: 18,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 'stats-3',
+    matchId: 'match-2',
+    playerId: 'player-1',
+    team: 'team_a',
+    points: 20,
+    rebounds: 6,
+    assists: 7,
+    steals: 2,
+    blocks: 0,
+    turnovers: 3,
+    fouls: 2,
+    minutesPlayed: 38,
+    fieldGoalsMade: 8,
+    fieldGoalsAttempted: 16,
+    threePointersMade: 1,
+    threePointersAttempted: 3,
+    freeThrowsMade: 3,
+    freeThrowsAttempted: 3,
+    plusMinus: 8,
+    efficiencyRating: 19,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];
 
-vi.mock('../../repositories/player-match-stats.repository', () => {
-  const mockStats: PlayerMatchStats[] = [
-    {
-      id: 'stats-1',
-      matchId: 'match-1',
-      playerId: 'player-1',
-      team: 'team_a',
-      points: 18,
-      rebounds: 5,
-      assists: 8,
-      steals: 3,
-      blocks: 1,
-      turnovers: 2,
-      fouls: 3,
-      minutesPlayed: 40,
-      fieldGoalsMade: 7,
-      fieldGoalsAttempted: 15,
-      threePointersMade: 2,
-      threePointersAttempted: 5,
-      freeThrowsMade: 2,
-      freeThrowsAttempted: 2,
-      plusMinus: 12,
-      efficiencyRating: 20,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: 'stats-2',
-      matchId: 'match-1',
-      playerId: 'player-2',
-      team: 'team_b',
-      points: 22,
-      rebounds: 8,
-      assists: 4,
-      steals: 2,
-      blocks: 2,
-      turnovers: 3,
-      fouls: 2,
-      minutesPlayed: 38,
-      fieldGoalsMade: 9,
-      fieldGoalsAttempted: 18,
-      threePointersMade: 1,
-      threePointersAttempted: 4,
-      freeThrowsMade: 3,
-      freeThrowsAttempted: 4,
-      plusMinus: -8,
-      efficiencyRating: 18,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: 'stats-3',
-      matchId: 'match-2',
-      playerId: 'player-1',
-      team: 'team_a',
-      points: 20,
-      rebounds: 6,
-      assists: 7,
-      steals: 2,
-      blocks: 0,
-      turnovers: 3,
-      fouls: 2,
-      minutesPlayed: 38,
-      fieldGoalsMade: 8,
-      fieldGoalsAttempted: 16,
-      threePointersMade: 1,
-      threePointersAttempted: 3,
-      freeThrowsMade: 3,
-      freeThrowsAttempted: 3,
-      plusMinus: 8,
-      efficiencyRating: 19,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ];
+// Mock MatchRepository
+class MockMatchRepository {
+  findByPlayerId = vi.fn().mockResolvedValue(mockMatches);
+  findById = vi.fn().mockResolvedValue(mockMatches[0]);
+}
 
-  return {
-    PlayerMatchStatsRepository: class MockPlayerMatchStatsRepository {
-      findByPlayerId = vi.fn().mockResolvedValue(mockStats);
-      findByMatchId = vi.fn().mockResolvedValue([mockStats[0], mockStats[1]]);
-    },
-  };
-});
+// Mock PlayerMatchStatsRepository
+class MockPlayerMatchStatsRepository {
+  findByPlayerId = vi.fn().mockResolvedValue(mockStats);
+  findByMatchId = vi.fn().mockResolvedValue([mockStats[0], mockStats[1]]);
+}
+
+vi.mock('../../repositories/match.repository', () => ({
+  MatchRepository: MockMatchRepository,
+}));
+
+vi.mock('../../repositories/player-match-stats.repository', () => ({
+  PlayerMatchStatsRepository: MockPlayerMatchStatsRepository,
+}));
 
 describe('MatchAnalysisService', () => {
   let service: MatchAnalysisService;
@@ -170,23 +173,8 @@ describe('MatchAnalysisService', () => {
     });
 
     it('应该处理无比赛数据的情况', async () => {
-      // 重新 mock 为返回空数组
-      const EmptyMockMatchRepository = class {
-        findByPlayerId = vi.fn().mockResolvedValue([]);
-      };
-      const EmptyMockStatsRepository = class {
-        findByPlayerId = vi.fn().mockResolvedValue([]);
-      };
-
-      vi.doMock('../../repositories/match.repository', () => ({
-        MatchRepository: EmptyMockMatchRepository,
-      }));
-      vi.doMock('../../repositories/player-match-stats.repository', () => ({
-        PlayerMatchStatsRepository: EmptyMockStatsRepository,
-      }));
-
-      const newService = new MatchAnalysisService();
-      const summary = await newService.getPlayerMatchSummary('player-no-data');
+      // Use a different player that has no data in the mock
+      const summary = await service.getPlayerMatchSummary('player-no-data');
 
       expect(summary.totalMatches).toBe(0);
       expect(summary.avgPoints).toBe(0);

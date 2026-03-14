@@ -7,13 +7,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChatView } from '../../components/ChatView';
-import { chatService } from '../../services/chat-service';
 
 // Mock chatService
+const mockSendMessageStream = vi.fn().mockResolvedValue('这是 AI 的回复');
+const mockClearHistory = vi.fn();
+
 vi.mock('../../services/chat-service', () => ({
   chatService: {
-    sendMessage: vi.fn(),
-    clearHistory: vi.fn(),
+    sendMessageStream: mockSendMessageStream,
+    clearHistory: mockClearHistory,
   },
 }));
 
@@ -47,10 +49,13 @@ describe('ChatView', () => {
   describe('发送消息', () => {
     it('应该能够发送消息', async () => {
       const mockResponse = '这是 AI 的回复';
-      (chatService.sendMessage as any).mockResolvedValue(mockResponse);
+      mockSendMessageStream.mockImplementation(async (_msg, onChunk) => {
+        onChunk('这是 AI 的回复');
+        return '这是 AI 的回复';
+      });
 
       render(<ChatView />);
-      
+
       const input = screen.getByPlaceholderText(/输入消息/);
       const sendButton = screen.getByRole('button', { name: /发送/i });
 
@@ -63,7 +68,7 @@ describe('ChatView', () => {
 
       // 等待消息发送
       await waitFor(() => {
-        expect(chatService.sendMessage).toHaveBeenCalledWith('你好');
+        expect(mockSendMessageStream).toHaveBeenCalledWith('你好', expect.any(Function));
       });
 
       // 等待 AI 回复显示
@@ -75,23 +80,26 @@ describe('ChatView', () => {
 
     it('应该能够使用 Enter 键发送消息', async () => {
       const mockResponse = 'AI 回复';
-      (chatService.sendMessage as any).mockResolvedValue(mockResponse);
+      mockSendMessageStream.mockImplementation(async (_msg, onChunk) => {
+        onChunk('AI 回复');
+        return 'AI 回复';
+      });
 
       render(<ChatView />);
-      
+
       const input = screen.getByPlaceholderText(/输入消息/);
 
       // 输入消息并按 Enter
       await userEvent.type(input, '测试消息{enter}');
 
       await waitFor(() => {
-        expect(chatService.sendMessage).toHaveBeenCalledWith('测试消息');
+        expect(mockSendMessageStream).toHaveBeenCalledWith('测试消息', expect.any(Function));
       });
     });
 
     it('应该能够使用 Shift+Enter 换行', async () => {
       render(<ChatView />);
-      
+
       const input = screen.getByPlaceholderText(/输入消息/) as HTMLTextAreaElement;
 
       // 输入消息并按 Shift+Enter
@@ -101,10 +109,13 @@ describe('ChatView', () => {
     });
 
     it('发送时应该清空输入框', async () => {
-      (chatService.sendMessage as any).mockResolvedValue('回复');
+      mockSendMessageStream.mockImplementation(async (_msg, onChunk) => {
+        onChunk('回复');
+        return '回复';
+      });
 
       render(<ChatView />);
-      
+
       const input = screen.getByPlaceholderText(/输入消息/) as HTMLTextAreaElement;
       await userEvent.type(input, '测试');
       await userEvent.click(screen.getByRole('button', { name: /发送/i }));
@@ -116,7 +127,7 @@ describe('ChatView', () => {
 
     it('应该禁用空消息发送', () => {
       render(<ChatView />);
-      
+
       const sendButton = screen.getByRole('button', { name: /发送/i });
       expect(sendButton).toBeDisabled();
     });
@@ -125,20 +136,22 @@ describe('ChatView', () => {
   describe('加载状态', () => {
     it('发送消息时应该显示加载指示器', async () => {
       let resolvePromise: any;
-      (chatService.sendMessage as any).mockImplementation(() => {
+      mockSendMessageStream.mockImplementation(async (_msg, onChunk) => {
         return new Promise(resolve => {
           resolvePromise = resolve;
         });
       });
 
       render(<ChatView />);
-      
+
       const input = screen.getByPlaceholderText(/输入消息/);
       await userEvent.type(input, '测试{enter}');
 
       // 应该显示加载状态
       await waitFor(() => {
-        expect(screen.getByRole('status', { name: /加载中/i })).toBeInTheDocument();
+        const sendButton = screen.getByRole('button', { name: /发送/i });
+        expect(sendButton).toHaveTextContent('生成中...');
+        expect(sendButton).toBeDisabled();
       });
 
       // 完成请求
@@ -146,15 +159,16 @@ describe('ChatView', () => {
 
       // 加载状态应该消失
       await waitFor(() => {
-        expect(screen.queryByRole('status', { name: /加载中/i })).not.toBeInTheDocument();
+        const sendButton = screen.getByRole('button', { name: /发送/i });
+        expect(sendButton).toHaveTextContent('发送');
       });
     });
 
     it('加载时应该禁用输入', async () => {
-      (chatService.sendMessage as any).mockImplementation(() => new Promise(() => {}));
+      mockSendMessageStream.mockImplementation(async () => new Promise(() => {}));
 
       render(<ChatView />);
-      
+
       const input = screen.getByPlaceholderText(/输入消息/);
       await userEvent.type(input, '测试{enter}');
 
@@ -166,14 +180,14 @@ describe('ChatView', () => {
 
   describe('错误处理', () => {
     it('应该处理错误并移除用户消息', async () => {
-      (chatService.sendMessage as any).mockRejectedValue({
+      mockSendMessageStream.mockRejectedValue({
         code: 'ERROR',
         message: '错误',
         retryable: false,
       });
 
       render(<ChatView />);
-      
+
       const input = screen.getByPlaceholderText(/输入消息/);
       await userEvent.type(input, '测试{enter}');
 
@@ -186,10 +200,13 @@ describe('ChatView', () => {
 
   describe('清空对话', () => {
     it('应该能够清空对话', async () => {
-      (chatService.sendMessage as any).mockResolvedValue('回复');
+      mockSendMessageStream.mockImplementation(async (_msg, onChunk) => {
+        onChunk('回复');
+        return '回复';
+      });
 
       render(<ChatView />);
-      
+
       // 发送一条消息
       const input = screen.getByPlaceholderText(/输入消息/);
       await userEvent.type(input, '测试{enter}');
@@ -205,7 +222,7 @@ describe('ChatView', () => {
 
       await waitFor(() => {
         expect(screen.queryByText('测试')).not.toBeInTheDocument();
-        expect(chatService.clearHistory).toHaveBeenCalled();
+        expect(mockClearHistory).toHaveBeenCalled();
       });
     });
   });

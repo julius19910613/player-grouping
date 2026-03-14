@@ -5,6 +5,7 @@
  * timeout, and retry mechanisms for robustness.
  */
 
+import 'dotenv/config'; // Load .env files
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { Tool, CallToolResult } from '@modelcontextprotocol/sdk/types.js';
@@ -36,7 +37,7 @@ class CircuitBreaker {
   private lastFailureTime: number = 0;
   private halfOpenCalls: number = 0;
 
-  constructor(private config: CircuitBreakerConfig) {}
+  constructor(private config: CircuitBreakerConfig) { }
 
   /**
    * Check if the circuit allows a request to proceed
@@ -182,7 +183,12 @@ export class MCPClientManager {
 
       this.transport = new StdioClientTransport({
         command: 'npx',
-        args: ['@supabase/mcp-server', '--project-id', projectId],
+        args: [
+          '-y',
+          '@supabase/mcp-server-supabase',
+          '--project-ref', projectId,
+          '--access-token', process.env.SUPABASE_ACCESS_TOKEN || '',
+        ],
       });
 
       if (this.client) {

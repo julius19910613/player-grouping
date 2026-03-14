@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ChatService } from '../services/chat-service';
+import { ChatService } from '../../services/chat-service';
 
 // Mock fetch
 global.fetch = vi.fn();

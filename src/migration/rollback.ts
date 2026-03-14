@@ -148,12 +148,17 @@ class RollbackManager {
   }
   
   /**
-   * 从备份恢复 SQLite 数据
+   * 从备份恢复数据
    * @private
    */
   private async restoreFromBackup(backupId?: string): Promise<number> {
     try {
-      // 1. 打开 IndexedDB
+      // 1. 检查 IndexedDB 是否可用
+      if (typeof indexedDB === 'undefined') {
+        throw new Error('IndexedDB 不可用，无法恢复备份');
+      }
+
+      // 2. 打开 IndexedDB
       const idb = await openDB(this.DB_NAME, 1, {
         upgrade(db) {
           if (!db.objectStoreNames.contains('backups')) {
@@ -161,10 +166,10 @@ class RollbackManager {
           }
         },
       });
-      
-      // 2. 获取备份
+
+      // 3. 获取备份
       let backup: BackupInfo | null = null;
-      
+
       if (backupId) {
         // 使用指定的备份 ID
         backup = await idb.get(this.BACKUP_STORE, backupId);
@@ -173,28 +178,55 @@ class RollbackManager {
         const backups = await idb.getAll(this.BACKUP_STORE);
         if (backups.length > 0) {
           // 按时间戳降序排序
-          backups.sort((a: any, b: any) => 
+          backups.sort((a: any, b: any) =>
             new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
           );
           backup = backups[0];
         }
       }
-      
+
       if (!backup) {
         throw new Error('没有可用的备份');
       }
-      
+
       console.log(`💾 使用备份: ${backup.id}, 时间=${backup.timestamp}`);
-      
-      // 3. 恢复数据库
-      await databaseService.importDatabase(backup.data);
-      
-      // 4. 获取恢复的记录数
-      const status = databaseService.getStatus();
-      const restoredCount = status.playerCount;
-      
-      return restoredCount;
-      
+
+      // 4. 检查是否是 LocalStorage 备份（JSON 格式）
+      const decoder = new TextDecoder();
+      const backupText = decoder.decode(backup.data);
+
+      let isLocalStorageBackup = false;
+      try {
+        // 尝试解析为 JSON
+        JSON.parse(backupText);
+        isLocalStorageBackup = true;
+      } catch {
+        // 不是 JSON，说明是 SQLite 二进制数据
+        isLocalStorageBackup = false;
+      }
+
+      // 5. 恢复数据
+      if (isLocalStorageBackup) {
+        // LocalStorage 备份：恢复到 LocalStorage
+        const backupData = JSON.parse(backupText);
+        this.restoreLocalStorage(backupData);
+        const playerCount = Object.keys(backupData.players || {}).length;
+        console.log(`✅ 已从 LocalStorage 备份恢复: ${playerCount} 个球员`);
+        return playerCount;
+      } else {
+        // SQLite 备份：使用 importDatabase
+        const status = databaseService.getStatus();
+        if (status.usingSQLite) {
+          await databaseService.importDatabase(backup.data);
+          const restoredStatus = databaseService.getStatus();
+          console.log(`✅ 已从 SQLite 备份恢复: ${restoredStatus.playerCount} 个球员`);
+          return restoredStatus.playerCount;
+        } else {
+          // 当前使用 LocalStorage 但备份是 SQLite 格式
+          throw new Error('无法将 SQLite 备份恢复到 LocalStorage 模式');
+        }
+      }
+
     } catch (error) {
       console.error('❌ 从备份恢复失败:', error);
       throw new DatabaseError(
@@ -202,6 +234,32 @@ class RollbackManager {
         'BACKUP_RESTORE_ERROR',
         error as Error
       );
+    }
+  }
+
+  /**
+   * 恢复 LocalStorage 数据
+   * @private
+   */
+  private restoreLocalStorage(backupData: any): void {
+    try {
+      if (typeof localStorage === 'undefined') return;
+
+      const key = 'player-grouping-sqlite-fallback';
+      const currentData = localStorage.getItem(key);
+      const currentParsed = currentData ? JSON.parse(currentData) : { players: {}, skills: {} };
+
+      // 合并备份数据
+      const restoredData = {
+        players: backupData.players || currentParsed.players,
+        skills: backupData.skills || currentParsed.skills,
+      };
+
+      localStorage.setItem(key, JSON.stringify(restoredData));
+      console.log('✅ LocalStorage 数据已恢复');
+    } catch (error) {
+      console.error('❌ 恢复 LocalStorage 数据失败:', error);
+      throw error;
     }
   }
   
@@ -215,11 +273,35 @@ class RollbackManager {
         console.warn('⚠️  数据库为空，跳过备份');
         return null;
       }
-      
-      // 2. 导出数据库
-      const data = databaseService.exportDatabase();
-      
-      // 3. 保存到 IndexedDB
+
+      // 2. 检查 IndexedDB 是否可用
+      if (typeof indexedDB === 'undefined') {
+        console.warn('⚠️  IndexedDB 不可用，跳过备份');
+        return null;
+      }
+
+      // 3. 导出数据库（支持 SQLite 或 LocalStorage）
+      let data: Uint8Array;
+      const status = databaseService.getStatus();
+
+      if (status.usingSQLite) {
+        // SQLite 模式：导出数据库
+        const arrayBuffer = databaseService.exportDatabase();
+        data = new Uint8Array(arrayBuffer);
+      } else {
+        // LocalStorage 模式：创建 JSON 备份
+        const backupData = JSON.stringify({
+          players: this.getLocalStoragePlayers(),
+          skills: this.getLocalStorageSkills(),
+          timestamp: new Date().toISOString(),
+          note: note || 'LocalStorage backup',
+        });
+        // 将字符串转换为 Uint8Array
+        const encoder = new TextEncoder();
+        data = encoder.encode(backupData);
+      }
+
+      // 4. 保存到 IndexedDB
       const idb = await openDB(this.DB_NAME, 1, {
         upgrade(db) {
           if (!db.objectStoreNames.contains('backups')) {
@@ -227,22 +309,56 @@ class RollbackManager {
           }
         },
       });
-      
+
       const backup: Omit<BackupInfo, 'id'> = {
         timestamp: new Date().toISOString(),
-        data: new Uint8Array(data),
-        note: note || 'Migration backup',
+        data,
+        note: note || status.usingSQLite ? 'SQLite backup' : 'LocalStorage backup',
       };
-      
+
       const id = await idb.add(this.BACKUP_STORE, backup);
-      
-      console.log(`💾 备份已创建: ID=${id}, 大小=${data.byteLength} bytes`);
-      
+
+      console.log(`💾 备份已创建: ID=${id}, 大小=${data.byteLength} bytes, 模式=${status.usingSQLite ? 'SQLite' : 'LocalStorage'}`);
+
       return id.toString();
-      
+
     } catch (error) {
       console.error('❌ 创建备份失败:', error);
       return null;
+    }
+  }
+
+  /**
+   * 从 LocalStorage 获取球员数据
+   * @private
+   */
+  private getLocalStoragePlayers(): Record<string, any> {
+    try {
+      if (typeof localStorage === 'undefined') return {};
+      const key = 'player-grouping-sqlite-fallback';
+      const data = localStorage.getItem(key);
+      if (!data) return {};
+      const parsed = JSON.parse(data);
+      return parsed.players || {};
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * 从 LocalStorage 获取技能数据
+   * @private
+   */
+  private getLocalStorageSkills(): Record<string, any> {
+    try {
+      if (typeof localStorage === 'undefined') return {};
+      const key = 'player-grouping-sqlite-fallback';
+      const data = localStorage.getItem(key);
+      if (!data) return {};
+      const parsed = JSON.parse(data);
+      return parsed.skills || {};
+    } catch {
+      return {};
     }
   }
   
