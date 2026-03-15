@@ -1,11 +1,14 @@
 /**
  * Chat API Handler with LangChain SQL Agent
+ *
+ * Supports:
+ * - SSE streaming responses
+ * - Message history format
+ * - LangChain SQL Agent for database queries
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-
-// SQL Agent
 import { SQLQueryAgent } from '../src/lib/sql-agent/sql-query-agent.js';
 
 // Config
@@ -28,21 +31,36 @@ function detectDBIntent(message: string): boolean {
   return keywords.some(kw => message.includes(kw));
 }
 
+// Get last user message from messages array
+function getLastUserMessage(messages: Array<{ role: string; content: string }>): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') {
+      return messages[i].content;
+    }
+  }
+  return null;
+}
+
 // Main handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { message } = req.body;
+  const { messages, enableFunctionCalling, stream } = req.body;
 
-  if (!message) {
+  // Support both formats:
+  // 1. { messages: [...] } - new format from frontend
+  // 2. { message: "..." } - old format for backward compatibility
+  const userMessage = messages ? getLastUserMessage(messages) : req.body.message;
+
+  if (!userMessage) {
     return res.status(400).json({ error: 'Message is required' });
   }
 
   try {
     // Check if database query intent
-    const needsDBQuery = detectDBIntent(message);
+    const needsDBQuery = enableFunctionCalling !== false && detectDBIntent(userMessage);
 
     if (needsDBQuery) {
       // Use SQL Agent
@@ -51,22 +69,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         await sqlAgent.initialize();
       }
 
-      const queryResult = await sqlAgent.query(message);
+      const queryResult = await sqlAgent.query(userMessage);
 
       if (!queryResult.success) {
         // Fall back to normal chat
         const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash' });
-        const result = await model.generateContent(message);
-        return res.json({
-          message: result.response.text(),
-          error: 'Database query failed'
-        });
+        const result = await model.generateContent(userMessage);
+        const responseText = result.response.text();
+
+        if (stream) {
+          // SSE streaming
+          res.setHeader('Content-Type', 'text/event-stream');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.setHeader('Connection', 'keep-alive');
+
+          res.write(`data: ${JSON.stringify({ text: responseText })}\n\n`);
+          res.write(`data: ${JSON.stringify({ error: 'Database query failed' })}\n\n`);
+          res.write('data: [DONE]\n\n');
+          return res.end();
+        } else {
+          return res.json({
+            message: responseText,
+            error: 'Database query failed'
+          });
+        }
       }
 
       // Generate natural language response
       const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash' });
       const prompt = `
-用户问：${message}
+用户问：${userMessage}
 
 数据库查询结果：
 ${JSON.stringify(queryResult.data, null, 2)}
@@ -77,26 +109,52 @@ ${JSON.stringify(queryResult.data, null, 2)}
       `;
 
       const result = await model.generateContent(prompt);
-      return res.json({
-        message: result.response.text(),
-        metadata: {
-          sql: queryResult.sql,
-          rowCount: queryResult.data?.length
-        }
-      });
+      const responseText = result.response.text();
+
+      if (stream) {
+        // SSE streaming
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        res.write(`data: ${JSON.stringify({ text: responseText, metadata: { sql: queryResult.sql, rowCount: queryResult.data?.length } })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      } else {
+        return res.json({
+          message: responseText,
+          metadata: {
+            sql: queryResult.sql,
+            rowCount: queryResult.data?.length
+          }
+        });
+      }
     } else {
       // Normal chat
       const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash' });
-      const result = await model.generateContent(message);
-      return res.json({
-        message: result.response.text()
-      });
+      const result = await model.generateContent(userMessage);
+      const responseText = result.response.text();
+
+      if (stream) {
+        // SSE streaming
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+
+        res.write(`data: ${JSON.stringify({ text: responseText })}\n\n`);
+        res.write('data: [DONE]\n\n');
+        return res.end();
+      } else {
+        return res.json({
+          message: responseText
+        });
+      }
     }
   } catch (error) {
     console.error('Chat API error:', error);
     return res.status(500).json({
       error: 'Internal server error',
-      message: error.message
+      message: error instanceof Error ? error.message : String(error)
     });
   }
 }
