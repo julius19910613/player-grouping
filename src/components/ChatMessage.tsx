@@ -6,9 +6,10 @@
 import { memo, useState, useCallback } from 'react';
 import { Button } from './ui/button';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { Copy, RotateCcw, Check } from 'lucide-react';
+import { Copy, RotateCcw, Check, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { FeedbackButtons } from './FeedbackButtons';
+import { cn } from '@/lib/utils';
 import type { ChatMessage as ChatMessageType } from '../types/chat';
 
 interface ChatMessageProps {
@@ -56,6 +57,21 @@ export const ChatMessage = memo<ChatMessageProps>(
               : 'bg-muted'
           }`}
         >
+          {/* 数据库查询标记（仅 AI 消息） */}
+          {!isUser && message.metadata?.source === 'sql-agent' && (
+            <div className="flex items-center gap-1.5 mb-2 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md">
+              <Database className="h-3.5 w-3.5 text-blue-500" />
+              <span className="text-xs text-blue-600 dark:text-blue-400">
+                已查询数据库
+              </span>
+              {message.metadata.rowCount !== undefined && (
+                <span className="text-xs text-muted-foreground">
+                  ({message.metadata.rowCount} 条记录)
+                </span>
+              )}
+            </div>
+          )}
+
           {/* 消息内容 */}
           {isUser ? (
             <p className="whitespace-pre-wrap">{message.content}</p>

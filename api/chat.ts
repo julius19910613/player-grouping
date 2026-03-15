@@ -73,6 +73,13 @@ import {
   analyzeMatchPerformance,
 } from './lib/db-queries.js';
 
+// SQL Agent (for natural language to SQL queries)
+import {
+  SQLQueryAgent,
+  getOrCreateSQLAgent,
+  type QueryResult,
+} from '../src/lib/sql-agent/sql-query-agent.js';
+
 // ============================================================================
 // Configuration
 // ============================================================================
@@ -81,6 +88,78 @@ import {
 export const config = {
   maxDuration: 10,
 };
+
+// ============================================================================
+// Database Intent Detection
+// ============================================================================
+
+/**
+ * Database query intent detection
+ *
+ * Determines if a user message requires a database query based on keywords.
+ *
+ * @param message - User message
+ * @returns true if database query is needed, false otherwise
+ */
+function detectDBIntent(message: string): boolean {
+  if (!message || typeof message !== 'string') {
+    return false;
+  }
+
+  const keywords = [
+    '球员',
+    '水平',
+    '能力',
+    '位置',
+    '技能',
+    '最厉害',
+    '最强',
+    '排名',
+    '比较',
+    '统计',
+    '得分',
+    '防守',
+    '传球',
+    '投篮',
+    '篮板',
+    '骚当',
+    '谁',
+    '多少',
+    '几个',
+    '查询',
+    '显示',
+    '列出',
+    '最高',
+    '最低',
+    '平均',
+    'total',
+    'count',
+    'overall',
+  ];
+
+  return keywords.some((kw) => message.includes(kw));
+}
+
+/**
+ * Check if database features are enabled
+ *
+ * @returns true if SQL Agent should be used
+ */
+function isDBEnabled(): boolean {
+  // Check if DB password is configured
+  const hasPassword = !!process.env.SUPABASE_DB_PASSWORD;
+
+  // Check if DB feature is explicitly disabled
+  const isDisabled = process.env.ENABLE_SQL_AGENT === 'false';
+
+  return hasPassword && !isDisabled;
+}
+
+// ============================================================================
+// Global State (Vercel warm-reuse pattern)
+// ============================================================================
+
+let sqlAgent: SQLQueryAgent | null = null;
 
 // Rate limiting configuration
 const rateLimit = new LRUCache<string, number>({
@@ -721,6 +800,73 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       error: 'Invalid request',
       message: '请求格式错误，需要提供 messages 数组',
     });
+  }
+
+  // Get the latest user message
+  const lastMessage = messages[messages.length - 1];
+  const userMessage = lastMessage?.content || '';
+
+  // Check if database query is needed
+  if (isDBEnabled() && detectDBIntent(userMessage)) {
+    logger.info('Database query detected, using SQL Agent');
+
+    try {
+      // Initialize SQL Agent
+      if (!sqlAgent) {
+        sqlAgent = getOrCreateSQLAgent();
+        await sqlAgent.initialize();
+      }
+
+      // Query the database
+      const queryResult: QueryResult = await sqlAgent.query(userMessage);
+
+      if (!queryResult.success) {
+        logger.warn('SQL Agent query failed', { error: queryResult.error });
+
+        // Fall back to normal chat flow if SQL Agent fails
+        // (continue to the normal chat logic below)
+      } else {
+        logger.info('SQL Agent query successful', {
+          rowCount: queryResult.rowCount,
+          sql: queryResult.sql,
+        });
+
+        // Use Gemini to generate natural language response
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-3.1-flash-lite-preview',
+        });
+
+        const prompt = `
+用户问：${userMessage}
+
+数据库查询结果：
+${JSON.stringify(queryResult.data, null, 2)}
+
+请用自然、友好的语言回答用户的问题，基于查询结果给出详细说明。
+如果数据为空，说明没有找到相关信息。
+不要提及 SQL 或技术细节。
+使用中文回复。
+`;
+
+        const geminiResult = await model.generateContent(prompt);
+        const response = geminiResult.response.text();
+
+        return res.status(200).json({
+          success: true,
+          message: response,
+          timestamp: new Date().toISOString(),
+          metadata: {
+            source: 'sql-agent',
+            sql: queryResult.sql, // Only for debugging
+            rowCount: queryResult.rowCount,
+          },
+        });
+      }
+    } catch (dbError) {
+      logger.error('SQL Agent error, falling back to normal chat', dbError);
+      // Continue to normal chat flow
+    }
   }
 
   // Initialize Gemini client

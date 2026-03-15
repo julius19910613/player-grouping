@@ -68,3 +68,4 @@ coverage/
 *.sqlite
 *.sqlite-journal
 .env.vercel
+.vercel

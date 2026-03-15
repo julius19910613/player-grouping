@@ -12,6 +12,11 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   toolCalls?: ToolCall[];
+  metadata?: {
+    source?: string;
+    sql?: string;
+    rowCount?: number;
+  };
 }
 
 export interface ChatSession {
