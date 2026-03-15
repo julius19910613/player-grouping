@@ -13,7 +13,7 @@
 
 import type { DataSource } from 'typeorm';
 
-import { createSupabaseDataSource } from './db-connection';
+import { createSupabaseDataSource } from './db-connection.js';
 
 /**
  * Query result from SQL Agent
