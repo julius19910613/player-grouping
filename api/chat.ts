@@ -73,7 +73,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (!queryResult.success) {
         // Fall back to normal chat
-        const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
         const result = await model.generateContent(userMessage);
         const responseText = result.response.text();
 
@@ -96,7 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       // Generate natural language response
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
       const prompt = `
 用户问：${userMessage}
 
@@ -131,7 +131,7 @@ ${JSON.stringify(queryResult.data, null, 2)}
       }
     } else {
       // Normal chat
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
       const result = await model.generateContent(userMessage);
       const responseText = result.response.text();
 

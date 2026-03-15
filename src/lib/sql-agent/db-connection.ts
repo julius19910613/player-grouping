@@ -1,58 +1,29 @@
 /**
- * Database connection configuration for LangChain SQL Agent
+ * Database connection configuration for SQL Agent
  *
- * This module provides a TypeORM DataSource configured for Supabase PostgreSQL.
- * It's used by the SQL Agent to execute natural language queries.
+ * This module provides a Supabase client configured for querying the database.
+ * Uses the Supabase JS client (REST API) which is proven to work reliably.
  */
 
-import type { DataSource, DataSourceOptions } from 'typeorm';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 /**
- * Supabase database connection options
+ * Create a Supabase client instance for database queries
+ *
+ * @returns SupabaseClient configured for the project
  */
-const getSupabaseConnectionOptions = (): DataSourceOptions => {
-  const password = process.env.SUPABASE_DB_PASSWORD;
+export const createSupabaseQueryClient = (): SupabaseClient => {
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
-  if (!password) {
-    console.warn(
-      'SUPABASE_DB_PASSWORD not set. SQL Agent will not function properly.'
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error(
+      'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY environment variables'
     );
   }
 
-  const encodedPassword = password ? encodeURIComponent(password) : '';
+  console.log('[DB Connection] Using Supabase JS client (REST API)');
+  console.log('[DB Connection] URL:', supabaseUrl);
 
-  return {
-    type: 'postgres',
-    url: `postgres://postgres.saeplsevqechdnlkwjyz:${encodedPassword}@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres`,
-    ssl: { rejectUnauthorized: false },
-    // Connection pool configuration
-    poolSize: 5,
-    extra: {
-      max: 5,
-      min: 1,
-      idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
-    },
-    // Disable logging for production
-    logging: false,
-  };
-};
-
-/**
- * Create a Supabase DataSource instance
- *
- * @returns TypeORM DataSource configured for Supabase PostgreSQL
- */
-export const createSupabaseDataSource = (): DataSource => {
-  const { DataSource } = require('typeorm');
-  return new DataSource(getSupabaseConnectionOptions());
-};
-
-/**
- * Get Supabase connection options (for testing)
- *
- * @returns DataSourceOptions for Supabase
- */
-export const getSupabaseOptions = (): DataSourceOptions => {
-  return getSupabaseConnectionOptions();
+  return createClient(supabaseUrl, supabaseKey);
 };
