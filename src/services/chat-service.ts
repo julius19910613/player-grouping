@@ -85,42 +85,51 @@ export class ChatService {
    * 发送消息（流式）
    * @param message 用户消息
    * @param onChunk 每次收到数据块的回调
+   * @param history 可选的消息历史（如果提供，则使用此历史而非内部历史）
    * @returns 完整的 AI 响应
    */
   async sendMessageStream(
     message: string,
-    onChunk: (text: string) => void
+    onChunk: (text: string) => void,
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>
   ): Promise<string> {
-    // 添加用户消息到历史
-    if (this.enableHistory) {
+    // 如果提供了外部历史，使用外部历史；否则使用内部历史管理
+    const useExternalHistory = history !== undefined;
+
+    if (!useExternalHistory && this.enableHistory) {
       this.messageHistory.push({ role: 'user', content: message });
     }
 
     try {
       let response: string;
 
+      // 准备要发送的消息历史
+      const messagesToSend = useExternalHistory
+        ? history
+        : this.messageHistory;
+
       // 优先尝试后端 API route
       try {
-        response = await this.sendToBackendStream(message, onChunk);
+        response = await this.sendToBackendStream(messagesToSend!, onChunk);
       } catch (backendError) {
         console.warn('Backend API stream failed, trying direct Gemini call:', backendError);
 
         if (this.provider === 'gemini' && import.meta.env.DEV) {
-          response = await this.sendToGeminiStream(message, onChunk);
+          response = await this.sendToGeminiStream(messagesToSend!, onChunk);
         } else {
           throw backendError;
         }
       }
 
-      // 添加 AI 响应到历史
-      if (this.enableHistory) {
+      // 添加 AI 响应到历史（仅当使用内部历史时）
+      if (!useExternalHistory && this.enableHistory) {
         this.messageHistory.push({ role: 'assistant', content: response });
       }
 
       return response;
     } catch (error) {
-      // 移除失败的用户消息
-      if (this.enableHistory && this.messageHistory.length > 0) {
+      // 移除失败的用户消息（仅当使用内部历史时）
+      if (!useExternalHistory && this.enableHistory && this.messageHistory.length > 0) {
         this.messageHistory.pop();
       }
 
@@ -131,7 +140,7 @@ export class ChatService {
   /**
    * 发送到后端 API route（流式）
    */
-  private async sendToBackendStream(_message: string, onChunk: (text: string) => void): Promise<string> {
+  private async sendToBackendStream(messages: Array<{ role: 'user' | 'assistant'; content: string }>, onChunk: (text: string) => void): Promise<string> {
     const apiUrl = import.meta.env.PROD
       ? 'https://player-grouping.vercel.app/api/chat'
       : 'http://localhost:3000/api/chat';
@@ -149,7 +158,7 @@ export class ChatService {
           'Accept': 'text/event-stream',
         },
         body: JSON.stringify({
-          messages: this.messageHistory,
+          messages,
           enableFunctionCalling: this.enableFunctionCalling,
           stream: true,
         }),
@@ -333,7 +342,7 @@ export class ChatService {
    * 发送到 Gemini（流式）
    */
   private async sendToGeminiStream(
-    _message: string,
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
     onChunk: (text: string) => void
   ): Promise<string> {
     if (!geminiClient.isAvailable()) {
@@ -341,7 +350,7 @@ export class ChatService {
     }
 
     try {
-      const response = await geminiClient.sendMessageStream(this.messageHistory, onChunk);
+      const response = await geminiClient.sendMessageStream(messages, onChunk);
       return response;
     } catch (error) {
       throw this.normalizeGeminiError(error as GeminiError);

@@ -76,6 +76,13 @@ export function ChatView() {
       timestamp: new Date(),
     };
 
+    // 构建要发送的消息历史（包括新用户消息）
+    const updatedMessages = [...messages, userMessage];
+    const messagesToSend = updatedMessages.map(msg => ({
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content,
+    }));
+
     setMessages(prev => [...prev, userMessage, assistantMessage]);
     setIsLoading(true);
     setIsStreaming(false);
@@ -85,7 +92,7 @@ export function ChatView() {
     screenReader.announce('正在处理您的消息...', 'polite');
 
     try {
-      // Call Gemini API (streaming)
+      // Call Gemini API (streaming)，传递完整的消息历史
       setIsStreaming(true);
       await chatService.sendMessageStream(content, (chunkText) => {
         setMessages(prev => prev.map(msg =>
@@ -93,7 +100,7 @@ export function ChatView() {
             ? { ...msg, content: msg.content + chunkText }
             : msg
         ));
-      });
+      }, messagesToSend); // 传递消息历史
       setIsStreaming(false);
 
       // 屏幕阅读器公告
@@ -124,7 +131,7 @@ export function ChatView() {
       setIsLoading(false);
       setIsStreaming(false);
     }
-  }, []);
+  }, [messages]);
 
   // 重新生成最后一条 AI 消息
   const handleRegenerate = useCallback(() => {
