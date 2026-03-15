@@ -86,8 +86,6 @@ import {
 
 // Vercel Function timeout configuration (10s max for Hobby Plan)
 export const config = {
-  runtime: 'edge',
-  regions: ['hnd1'], // Tokyo region, close to Supabase
   maxDuration: 10,
 };
 
