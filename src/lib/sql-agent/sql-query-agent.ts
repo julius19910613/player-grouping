@@ -172,6 +172,8 @@ export class SQLQueryAgent {
     const prompt = `
 You are a database query expert. Convert the following question into a structured Supabase query.
 
+**IMPORTANT: This is Supabase JS client, NOT raw SQL. You MUST use nested select syntax, NEVER use table aliases like "matches_1", "matches_2", etc.**
+
 Available tables and their columns:
 - players: id (uuid), name (text), position (text, one of: PG, SG, SF, PF, C), created_at (timestamp)
 - player_skills: player_id (uuid, FK→players.id), two_point_rating (int), three_point_rating (int), free_throw_rating (int), mid_range_rating (int), layup_rating (int), dunk_rating (int), passing (int), dribbling (int), ball_handling (int), rebounding (int), defense (int), shot_blocking (int), stealing (int), post_moves (int), perimeter_defense (int), speed (int), stamina (int), strength (int), vertical (int), basketball_iq (int), overall (int)
@@ -183,7 +185,7 @@ Question: ${question}
 Return a JSON object with these fields:
 {
   "table": "main table to query",
-  "select": "columns to select, use * for all, use table_name(columns) for joins",
+  "select": "columns to select - MUST use nested select for joins",
   "filters": [
     {"column": "column_name", "operator": "eq|neq|gt|gte|lt|lte|like|ilike|in|is", "value": "value"}
   ],
@@ -192,13 +194,25 @@ Return a JSON object with these fields:
   "joins": [{"table": "related_table", "select": "columns from joined table"}]
 }
 
-Rules:
-- Only use tables from the allowed list: ${ALLOWED_TABLES.join(', ')}
-- For text search use "ilike" operator with % wildcards
-- For joining player_skills, use select like: "*, player_skills(overall, defense, speed)"
-- For joining matches from player_match_stats, use: "*, matches(date, venue)"
-- Return ONLY valid JSON, no explanations
-- Position values are: PG (控卫), SG (得分后卫), SF (小前锋), PF (大前锋), C (中锋)
+**CRITICAL RULES:**
+1. **NEVER use table aliases like "matches_1", "matches_2", "table_alias.column"** - This will cause "column does not exist" errors
+2. **ALWAYS use nested select syntax**: "*, related_table(column1, column2)"
+3. Only use tables from the allowed list: ${ALLOWED_TABLES.join(', ')}
+4. For text search use "ilike" operator with % wildcards
+
+**CORRECT EXAMPLES:**
+✅ Join player_skills: { "select": "*, player_skills(overall, defense, speed)" }
+✅ Join matches: { "select": "*, matches(date, venue)" }
+✅ Multiple joins: { "select": "*, player_skills(*), matches(date, venue)" }
+
+**WRONG EXAMPLES (will cause errors):**
+❌ "select": "*, matches_1.date" - NO table aliases!
+❌ "select": "matches.date, players.name" - NO dot notation for joins!
+❌ "filters": [{"column": "matches_1.date", ...}] - NO aliases in filters!
+
+Position values are: PG (控卫), SG (得分后卫), SF (小前锋), PF (大前锋), C (中锋)
+
+Return ONLY valid JSON, no explanations.
 `;
 
     const response = await model.generateContent(prompt);
@@ -252,6 +266,9 @@ Rules:
     if (!this.supabase) {
       throw new Error('Supabase client not initialized');
     }
+
+    // Log the structured query for debugging
+    console.log('[SQL Agent] Executing query:', JSON.stringify(query, null, 2));
 
     try {
       // Build the query
