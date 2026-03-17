@@ -1,7 +1,10 @@
 /**
- * Chat API Handler with LangChain SQL Agent (FIXED VERSION)
+ * Chat API Handler with LangChain SQL Agent
  *
- * Fixed TypeScript syntax errors in template strings
+ * Supports:
+ * - SSE streaming responses
+ * - Message history format
+ * - LangChain SQL Agent for database queries
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
@@ -10,7 +13,7 @@ import { SQLQueryAgent } from '../src/lib/sql-agent/sql-query-agent.js';
 
 // Config
 export const config = {
-  maxDuration: 30, // Increased to 30s (Hobby tier max) to handle longer Gemini API responses
+  maxDuration: 10,
 };
 
 // Initialize
@@ -93,8 +96,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           res.setHeader('Content-Type', 'text/event-stream');
           res.setHeader('Cache-Control', 'no-cache');
           res.setHeader('Connection', 'keep-alive');
-
-          res.write('data: ' + JSON.stringify(errorResponse) + '\n\n');
+          res.write(`data: ${JSON.stringify(errorResponse)}\n\n`);
           res.write('data: [DONE]\n\n');
           return res.end();
         } else {
@@ -102,13 +104,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      // Return successful query result with data
+      // Generate natural language response
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash-lite-preview' });
+      const prompt = `
+用户问：${userMessage}
+
+数据库查询结果：
+${JSON.stringify(queryResult.data, null, 2)}
+
+请用自然、友好的语言回答用户的问题，基于查询结果给出详细说明。
+如果数据为空，说明没有找到相关信息。
+不要提及 SQL 或技术细节。
+      `;
+
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text();
+
       if (stream) {
         // SSE streaming - add success field for consistency
         const streamResponse = {
           success: true,
-          data: queryResult.data,
-          text: queryResult.explanation,
+          text: responseText,
           metadata: {
             sql: queryResult.sql,
             rowCount: queryResult.data?.length
@@ -119,14 +135,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
-        res.write('data: ' + JSON.stringify(streamResponse) + '\n\n');
+        res.write(`data: ${JSON.stringify(streamResponse)}\n\n`);
         res.write('data: [DONE]\n\n');
         return res.end();
       } else {
         return res.json({
           success: true,
-          data: queryResult.data,
-          text: queryResult.explanation,
+          message: responseText,
           metadata: {
             sql: queryResult.sql,
             rowCount: queryResult.data?.length
@@ -150,7 +165,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
 
-        res.write('data: ' + JSON.stringify(streamResponse) + '\n\n');
+        res.write(`data: ${JSON.stringify(streamResponse)}\n\n`);
         res.write('data: [DONE]\n\n');
         return res.end();
       } else {

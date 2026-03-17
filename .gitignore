@@ -69,3 +69,11 @@ coverage/
 *.sqlite-journal
 .env.vercel
 .vercel
+
+# 本地数据和报告
+backups/
+.sqlite-migration/
+*-report.json
+*-report-optimized.json
+*-status.json
+supabase-mcp-state.json

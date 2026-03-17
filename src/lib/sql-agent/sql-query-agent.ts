@@ -62,6 +62,13 @@ interface StructuredQuery {
     table: string;
     select: string;
   }>;
+  or?: {
+    conditions: Array<{
+      column: string;
+      operator: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'like' | 'ilike' | 'in' | 'is';
+      value: unknown;
+    }>;
+  };
 }
 
 /**
@@ -174,11 +181,25 @@ You are a database query expert. Convert the following question into a structure
 
 **IMPORTANT: This is Supabase JS client, NOT raw SQL. You MUST use nested select syntax, NEVER use table aliases like "matches_1", "matches_2", etc.**
 
+**CRITICAL SYNTAX RULES:**
+1. **OR Query Syntax**: Use .or() with PostgREST format
+   - Simple OR: "name.eq.张三,name.eq.李四" (comma separated conditions)
+   - IN operator: "name.in.(张三,李四)" (comma separated values)
+   - Complex OR: "and(name.eq.张三,position.eq.PG),name.eq.李四" (nested AND/OR)
+
+2. **Order by Joined Tables**: Use dot notation for foreign table columns
+   - Correct: "player_skills.overall" (order by joined table column)
+   - Wrong: "matches_1.date" (NEVER use auto-generated aliases)
+
+3. **Filter by Joined Tables**: Use dot notation for foreign table columns
+   - Correct: "player_skills.overall,eq.90" (filter by joined table column)
+   - Wrong: "matches_1.date,eq.2024" (NEVER use aliases in filters)
+
 Available tables and their columns:
-- players: id (uuid), name (text), position (text, one of: PG, SG, SF, PF, C), created_at (timestamp)
-- player_skills: player_id (uuid, FK→players.id), two_point_rating (int), three_point_rating (int), free_throw_rating (int), mid_range_rating (int), layup_rating (int), dunk_rating (int), passing (int), dribbling (int), ball_handling (int), rebounding (int), defense (int), shot_blocking (int), stealing (int), post_moves (int), perimeter_defense (int), speed (int), stamina (int), strength (int), vertical (int), basketball_iq (int), overall (int)
-- matches: id (uuid), date (date), venue (text), mode (text), teams (jsonb), result (jsonb), notes (text)
-- player_match_stats: id (uuid), match_id (uuid, FK→matches.id), player_id (uuid, FK→players.id), points (int), rebounds (int), assists (int), steals (int), blocks (int), turnovers (int), fouls (int), minutes_played (int), efficiency_rating (float)
+- players: id (uuid), name (text), position (text, one of: PG, SG, SF, PF, C), created_at (timestamp), updated_at (timestamp)
+- player_skills: player_id (uuid, FK→players.id), two_point_shot (int), three_point_shot (int), free_throw (int), passing (int), ball_control (int), court_vision (int), perimeter_defense (int), interior_defense (int), steals (int), blocks (int), offensive_rebound (int), defensive_rebound (int), speed (int), strength (int), stamina (int), vertical (int), basketball_iq (int), teamwork (int), clutch (int), overall (int), updated_at (timestamp)
+- matches: id (uuid), date (date), venue (text), mode (text), teams (jsonb), result (jsonb), notes (text), created_at (timestamp), updated_at (timestamp)
+- player_match_stats: id (uuid), match_id (uuid, FK→matches.id), player_id (uuid, FK→players.id), points (int), rebounds (int), assists (int), steals (int), blocks (int), turnovers (int), fouls (int), minutes_played (int), field_goals_made (int), field_goals_attempted (int), three_pointers_made (int), three_pointers_attempted (int), free_throws_made (int), free_throws_attempted (int), plus_minus (int), efficiency_rating (float), created_at (timestamp), updated_at (timestamp)
 
 Question: ${question}
 
@@ -199,16 +220,20 @@ Return a JSON object with these fields:
 2. **ALWAYS use nested select syntax**: "*, related_table(column1, column2)"
 3. Only use tables from the allowed list: ${ALLOWED_TABLES.join(', ')}
 4. For text search use "ilike" operator with % wildcards
+5. **OR queries**: Use PostgREST format with .or() for complex conditions
 
 **CORRECT EXAMPLES:**
 ✅ Join player_skills: { "select": "*, player_skills(overall, defense, speed)" }
 ✅ Join matches: { "select": "*, matches(date, venue)" }
 ✅ Multiple joins: { "select": "*, player_skills(*), matches(date, venue)" }
+✅ Order by joined column: { "order": "player_skills.overall" } (use dot notation)
+✅ OR query: { "or": [{"column": "name", "operator": "eq", "value": "张三"}, {"column": "name", "operator": "eq", "value": "李四"}] }
 
 **WRONG EXAMPLES (will cause errors):**
 ❌ "select": "*, matches_1.date" - NO table aliases!
 ❌ "select": "matches.date, players.name" - NO dot notation for joins!
 ❌ "filters": [{"column": "matches_1.date", ...}] - NO aliases in filters!
+❌ OR with wrong syntax: "or": "is.(name.ilike.张%,name.ilike.李%)" - INVALID PostgREST syntax!
 
 Position values are: PG (控卫), SG (得分后卫), SF (小前锋), PF (大前锋), C (中锋)
 
@@ -314,11 +339,36 @@ Return ONLY valid JSON, no explanations.
         }
       }
 
-      // Apply ordering
+      // Apply OR filters (PostgREST syntax)
+      if (query.or && query.or.conditions && query.or.conditions.length > 0) {
+        const orConditions = query.or.conditions.map(
+          (orCondition) => {
+            const valueStr = orCondition.operator === 'in' && Array.isArray(orCondition.value)
+              ? `${orCondition.column}.in.(${orCondition.value.join(',')})`
+              : `${orCondition.column}.${orCondition.operator}.${orCondition.value}`;
+            return valueStr;
+          }
+        ).join(',');
+
+        supabaseQuery = supabaseQuery.or(orConditions);
+      }
+
+      // Apply ordering - Fix for foreign table columns
       if (query.order) {
-        supabaseQuery = supabaseQuery.order(query.order.column, {
-          ascending: query.order.ascending,
-        });
+        // Check if ordering by a joined table column (contains dot)
+        const isJoinedColumn = query.order.column.includes('.');
+
+        // For joined tables, use dot notation directly
+        if (isJoinedColumn) {
+          supabaseQuery = supabaseQuery.order(query.order.column, {
+            ascending: query.order.ascending,
+          });
+        } else {
+          // For main table columns, use standard ordering
+          supabaseQuery = supabaseQuery.order(query.order.column, {
+            ascending: query.order.ascending,
+          });
+        }
       }
 
       // Apply limit
@@ -353,6 +403,18 @@ Return ONLY valid JSON, no explanations.
         (f) => `${f.column} ${f.operator} ${JSON.stringify(f.value)}`
       );
       desc += ` WHERE ${filterDescs.join(' AND ')}`;
+    }
+
+    if (query.or && query.or.conditions && query.or.conditions.length > 0) {
+      const orDescs = query.or.conditions.map(
+        (orCondition) => {
+          const valueStr = orCondition.operator === 'in' && Array.isArray(orCondition.value)
+            ? `${orCondition.column}.in.(${orCondition.value.join(',')})`
+            : `${orCondition.column}.${orCondition.operator}.${orCondition.value}`;
+          return valueStr;
+        }
+      );
+      desc += ` OR (${orDescs.join(' OR ')})`;
     }
 
     if (query.order) {

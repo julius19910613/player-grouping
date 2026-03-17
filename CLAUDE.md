@@ -84,13 +84,13 @@ const customGroupingRepo = createGroupingRepository('sqlite'); // Falls back to 
 ### Database Schema
 
 **SQLite/Supabase tables:**
-- `players` - Basic player info (id, name, position, created_at, updated_at)
-- `player_skills` - 19 skill ratings (two_point_shot, three_point_shot, free_throw, passing, ball_control, court_vision, perimeter_defense, interior_defense, steals, blocks, offensive_rebound, defensive_rebound, speed, strength, stamina, vertical, basketball_iq, teamwork, clutch) plus auto-calculated overall
+- `players` - Basic player info (id, user_id, name, position, created_at, updated_at)
+- `player_skills` - 19 skill ratings (two_point_shot, three_point_shot, free_throw, passing, ball_control, court_vision, perimeter_defense, interior_defense, steals, blocks, offensive_rebound, defensive_rebound, speed, strength, stamina, vertical, basketball_iq, teamwork, clutch) plus auto-calculated overall (position-weighted)
 - `grouping_history` - Team groupings with JSON data payload (mode, team_count, player_count, balance_score, data, note)
-- `matches` - Match records (date, mode, winner, created_at, updated_at)
-- `player_match_stats` - Player statistics per match (match_id, player_id, team, points, rebounds, assists, etc.)
-- `skill_adjustments` - Skill rating adjustments (player_id, adjustment_type, old_value, new_value, reason, status, created_at)
-- `player_videos` - Player video recordings (player_id, video_type, video_url, status, recorded_at, created_at)
+- `matches` - Match records (id, user_id, date, venue, mode, teams, result, notes, created_at, updated_at)
+- `player_match_stats` - Player statistics per match (match_id, player_id, team, points, rebounds, assists, steals, blocks, turnovers, fouls, minutes_played, efficiency_rating, etc.)
+- `skill_adjustments` - Skill rating adjustments (player_id, match_id, adjustment_type, skills_before, skills_after, reason, overall_change, status, created_at)
+- `player_videos` - Player video recordings (player_id, match_id, video_url, thumbnail_url, duration, video_type, status, ai_analysis, tags, created_at)
 
 **Supabase tables** (when configured): Same schema with RLS (Row Level Security) policies for anonymous auth.
 
@@ -105,7 +105,8 @@ const customGroupingRepo = createGroupingRepository('sqlite'); // Falls back to 
 - `PlayerMatchStats` - Individual player statistics per match
 - `SkillAdjustment`, `AdjustmentType`, `AdjustmentStatus` - Skill rating changes
 - `PlayerVideo`, `VideoType`, `VideoStatus` - Player video recordings
-- `ChatMessage`, `ChatRole` - AI chat messages (see `src/types/chat.ts`)
+- `ChatMessage`, `ChatRole` - AI chat messages with tool calls (see `src/types/chat.ts`)
+- `ToolCall` - Function call representation with status tracking (calling/success/error)
 
 **Path alias**: Use `@/` for imports from `src/` directory (configured in both tsconfig and vitest.config).
 
@@ -123,6 +124,15 @@ Legacy implementation at `src/utils/basketballGroupingAlgorithm.ts`:
 - `getTeamStats()` - Aggregates team-level statistics
 
 Algorithm uses snake draft pattern with position requirements and iteratively swaps players to minimize team rating differences (<10 points = balanced).
+
+**Newer Implementation** (`src/utils/groupingAlgorithm.ts`):
+- `GroupingAlgorithm` class with static methods
+- Multiple strategies: `balanced`, `position-balanced`, `random`
+- `calculateBalance()` - Returns standard deviation (lower = more balanced)
+- `movePlayerBetweenTeams()` - Move players between teams with state update
+- `previewBalanceAfterMove()` - Preview balance without actual movement
+- Greedy algorithm for balanced grouping
+- Round-robin assignment for position-balanced grouping
 
 ## Component Organization
 
@@ -147,6 +157,14 @@ Algorithm uses snake draft pattern with position requirements and iteratively sw
 - `FeedbackButtons` - Thumbs up/down for AI responses
 - `MonitoringDashboard` - API usage and error statistics
 
+**Vercel API Route:**
+- `/api/chat.ts` - Chat API handler with:
+  - SSE (Server-Sent Events) streaming responses
+  - SQL Agent integration for database queries
+  - Function calling support for data operations
+  - CORS headers for cross-origin requests
+  - Intent detection for database vs general chat queries
+
 **Import/Export Components:**
 - `ImportWizard` - Multi-step wizard for importing players/games
 - `PlayerImporter` - CSV/Excel file import
@@ -166,6 +184,40 @@ Algorithm uses snake draft pattern with position requirements and iteratively sw
 
 **Testing**: Component tests use `@testing-library/react`. Setup file at `src/test/setup.ts` extends Vitest with jest-dom matchers.
 
+## Custom Hooks
+
+Located in `src/hooks/`:
+- `usePlayerManager` - Player CRUD operations with loading states
+- `useTheme` - Theme management (dark/light mode)
+- `useDebounce` - Debounce utility for search/autocomplete inputs
+- `useKeyboardShortcut` - Keyboard shortcut event handling
+
+**Example Usage:**
+```typescript
+import { useDebounce } from '@/hooks/useDebounce';
+
+const debouncedSearch = useDebounce(searchTerm, 300);
+```
+
+## Utility Scripts
+
+Located in `src/scripts/`:
+- `import-players.ts` - Import players from CSV/JSON files to Supabase
+- `import-to-supabase.ts` - Batch import data to Supabase
+- `preview-players.ts` - Preview player data before import
+
+**Running Scripts:**
+```bash
+npx tsx src/scripts/import-players.ts
+```
+
+## Drag & Drop Utilities
+
+Located in `src/utils/dragDropState.ts`:
+- State management for drag-and-drop player grouping
+- Player movement between teams
+- Balance preview calculations
+
 ## Chat & AI Features
 
 The app includes an AI-powered chat assistant for basketball-related queries and data analysis.
@@ -182,6 +234,31 @@ The app includes an AI-powered chat assistant for basketball-related queries and
 - Google Gemini API integration
 - Stream-based response handling
 - Tool/function call support
+- Error handling and retry logic with exponential backoff
+
+### SQL Query Agent
+
+**SQL Agent**: `src/lib/sql-agent/sql-query-agent.ts`
+- Converts natural language questions into Supabase database queries
+- Uses Google Generative AI to parse questions and generate structured queries
+- Security features:
+  - Table whitelist (only allows: players, player_skills, matches, player_match_stats, grouping_history)
+  - Read-only operations (SELECT queries only)
+  - Maximum 100 rows per query
+- Integration with Vercel API route `/api/chat.ts`
+- Supports nested select syntax for Supabase JS client (no table aliases)
+
+**Key Functions:**
+```typescript
+import { getOrCreateSQLAgent } from '@/lib/sql-agent/sql-query-agent';
+
+const agent = getOrCreateSQLAgent();
+await agent.initialize();
+
+// Query database with natural language
+const result = await agent.query("Who are the top 5 players by overall rating?");
+// Returns: { success, sql, data, explanation, error, rowCount }
+```
 
 ### AI Services
 
@@ -218,12 +295,15 @@ Located in `src/components/chat/`:
 ### Environment Variables for AI
 
 ```bash
-# Required for AI features
+# Required for AI features (frontend)
 VITE_ARK_API_KEY=your-ark-api-key          # Doubai/Volcano Engine for AI
 VITE_ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 
 # Required for web search in chat
 VITE_BRAVE_SEARCH_API_KEY=your-brave-key    # Brave Search API
+
+# Required for backend AI (Vercel functions)
+GEMINI_API_KEY=your-gemini-api-key         # Google Gemini API for SQL Agent
 ```
 
 If AI services are not configured, the chat assistant will fallback to rule-based responses or display appropriate error messages.
@@ -403,6 +483,9 @@ VITE_ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 # Web Search (optional, for chat to search latest basketball info)
 VITE_BRAVE_SEARCH_API_KEY=your-brave-search-api-key
 
+# Backend AI (required for Vercel functions / SQL Agent)
+GEMINI_API_KEY=your-gemini-api-key
+
 # Deployment platform specific (see Deployment section below)
 VITE_BASE_URL=/player-grouping/  # GitHub Pages (default for production)
 ```
@@ -423,6 +506,7 @@ This project supports multiple deployment platforms:
   - `VITE_ARK_API_KEY` (optional)
   - `VITE_BRAVE_SEARCH_API_KEY` (optional)
 - **VITE_BASE_URL**: Set to `/player-grouping/` in GitHub Actions
+- **Note**: GitHub Pages deployment does not support serverless functions; SQL Agent will not work
 
 ### Vercel
 - **Base Path**: `/` (root)
@@ -433,7 +517,9 @@ This project supports multiple deployment platforms:
   - `VITE_SUPABASE_ANON_KEY`
   - `VITE_ARK_API_KEY` (optional)
   - `VITE_BRAVE_SEARCH_API_KEY` (optional)
+  - `GEMINI_API_KEY` (required for SQL Agent in Vercel functions)
 - **Note**: For local development with Vercel, use `npm run dev:vercel`
+- **Serverless Functions**: Vercel supports `/api/chat.ts` with SQL Agent integration
 
 ### Cloudflare Pages
 - **Base Path**: `/` (root, automatically configured)
@@ -669,5 +755,7 @@ import type { Player, BasketballPosition } from '@/types';
 - **React Router**: App uses `react-router-dom` for navigation, not tab-based navigation
 - **AI Features**: Chat, skill suggestions, and grouping optimization require `VITE_ARK_API_KEY`
 - **Web Search**: Chat web search requires `VITE_BRAVE_SEARCH_API_KEY`
+- **SQL Agent**: Natural language to database queries requires `GEMINI_API_KEY` (backend only)
+- **Serverless Functions**: Vercel API routes support SQL Agent with SSE streaming; GitHub Pages does not support serverless functions
 - **Path Alias**: Use `@/` for imports from `src/` directory (configured in tsconfig and vitest)
 - **Testing**: Vitest with jsdom environment; setup file at `src/test/setup.ts`

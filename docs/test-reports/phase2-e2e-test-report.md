@@ -93,7 +93,7 @@ VITE_ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 VITE_ARK_MODEL=doubao-seed-1-8-251228
 
 # Gemini API（备选方案）
-VITE_GEMINI_API_KEY=AIzaSyBnKN5g0lOu6aHTzvWtva98YZWRBA0r7Rc
+VITE_GEMINI_API_KEY=YOUR_GEMINI_API_KEY
 ```
 
 ---
@@ -111,7 +111,7 @@ VITE_GEMINI_API_KEY=AIzaSyBnKN5g0lOu6aHTzvWtva98YZWRBA0r7Rc
 | `VITE_ARK_API_KEY` | `2d04695b-2e03-43cf-8a25-ad07bad6b374` |
 | `VITE_ARK_BASE_URL` | `https://ark.cn-beijing.volces.com/api/v3` |
 | `VITE_ARK_MODEL` | `doubao-seed-1-8-251228` |
-| `VITE_GEMINI_API_KEY` | `AIzaSyBnKN5g0lOu6aHTzvWtva98YZWRBA0r7Rc` |
+| `VITE_GEMINI_API_KEY` | `YOUR_GEMINI_API_KEY` |
 
 4. 重新部署项目
 

@@ -41,7 +41,7 @@ export class GeminiClient {
 
   constructor(config: GeminiClientConfig = {}) {
     this.apiKey = config.apiKey || import.meta.env.VITE_GEMINI_API_KEY || '';
-    this.model = config.model || 'gemini-2.5-flash-lite';
+    this.model = config.model || 'gemini-3.1-flash-lite-preview';
     this.timeout = config.timeout || 30000;
     this.maxRetries = config.maxRetries || 3;
 

@@ -1,0 +1,76 @@
+/**
+ * Update GEMINI API Key Guide Script
+ *
+ * This script provides step-by-step instructions for updating the API key.
+ */
+
+console.log('============================================================');
+console.log('GEMINI API 密钥更新指南');
+console.log('============================================================');
+console.log('');
+console.log('📋 前提条件检查');
+console.log('- [ ] Node.js 已安装');
+console.log('- [ ] npm 依赖已安装');
+console.log('- [ ] .env 文件可编辑');
+console.log('');
+console.log('📋 步骤 1: 访问 Google AI Studio');
+console.log('');
+console.log('1.1 打开浏览器访问');
+console.log('   https://aistudio.google.com/');
+console.log('1.2 登录 Google 账号（确保已登录）');
+console.log('');
+console.log('2. 点击左侧菜单 "API Keys"');
+console.log('3. 点击 "Create API Key" 按钮');
+console.log('4. 设置密钥名称（如：player-grouping）');
+console.log('5. 选择模型：Gemini 2.5 Flash');
+console.log('6. 点击 "Create" 按钮');
+console.log('7. 复制生成的密钥');
+console.log('');
+console.log('📋 步骤 2: 获取新密钥');
+console.log('');
+console.log('⚠️  重要提示：');
+console.log('- 复制后立即保存密钥！密钥只会显示一次。');
+console.log('- 关闭页面后密钥将不可再获取。');
+console.log('- 如果不小心丢失了密钥，只能创建新的。');
+console.log('');
+console.log('📋 步骤 3: 验证新密钥');
+console.log('');
+console.log('3.1 编辑 .env 文件');
+console.log('-   nano .env 或使用你喜欢的编辑器');
+console.log('-   跳转到第 19 行（GEMINI_API_KEY=...）');
+console.log('-   粘贴新密钥');
+console.log('-   删除旧行（保留新密钥）');
+console.log('-   保存并退出（Ctrl+O, Enter, Ctrl+X）');
+console.log('');
+console.log('3.2 使用 npx tsx 快速验证');
+console.log('   npx tsx scripts/quick-test.ts');
+console.log('-   应该看到：[SUCCESS] Google AI works!');
+console.log('-   [SUCCESS] SQL Agent initialized!');
+console.log('');
+console.log('📋 步骤 4: 重新运行 AB 测试');
+console.log('');
+console.log('4.1 更新密钥后运行测试');
+console.log('-   npm run ab:test:optimized');
+console.log('');
+console.log('4.2 查看测试结果');
+console.log('-   cat ab-test-report-optimized.json');
+console.log('');
+console.log('============================================================');
+console.log('');
+console.log('📝 故障排查');
+console.log('');
+console.log('问题：快速测试失败');
+console.log('-   运行：npx tsx scripts/quick-test.ts');
+console.log('-   错误：检查浏览器控制台');
+console.log('');
+console.log('问题：API 返回通用回复');
+console.log('-   运行：curl http://localhost:3000/api/chat');
+console.log('-   - 诊断：检查 Vercel 日志');
+console.log('-   - 测试：检查 network 连接');
+console.log('');
+console.log('问题：Vercel 服务器无法启动');
+console.log('-   运行：npm run dev:vercel');
+console.log('-   停止服务：lsof -ti:3000 | xargs kill -9');
+console.log('-   重新启动：npm run dev:vercel');
+console.log('');
+console.log('============================================================');

@@ -15,7 +15,13 @@
     "test:watch": "vitest --watch",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d dist",
-    "backup": "npx tsx scripts/backup-localstorage.ts"
+    "backup": "npx tsx scripts/backup-localstorage.ts",
+      "ab:test": "tsx scripts/ab-test-sql-agent-fixed.ts",
+    "ab:test:optimized": "tsx scripts/ab-test-sql-agent-optimized.ts",
+    "ab:test:legacy": "USE_ENHANCED_SQL_AGENT=false tsx scripts/ab-test-sql-agent-fixed.ts",
+    "ab:test:enhanced": "USE_ENHANCED_SQL_AGENT=true tsx scripts/ab-test-sql-agent-fixed.ts",
+    "ab:verify": "tsx scripts/verify-ab-test-env.ts",
+    "db:optimize": "tsx scripts/create-db-indexes.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
