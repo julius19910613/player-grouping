@@ -102,13 +102,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
+      // Use the AI-generated explanation from SQL Agent
+      const explanation = queryResult.explanation || '查询成功完成。';
+
       // Return successful query result with data
       if (stream) {
         // SSE streaming - add success field for consistency
         const streamResponse = {
           success: true,
           data: queryResult.data,
-          text: queryResult.explanation,
+          text: explanation,
           metadata: {
             sql: queryResult.sql,
             rowCount: queryResult.data?.length
@@ -126,7 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json({
           success: true,
           data: queryResult.data,
-          text: queryResult.explanation,
+          text: explanation,
           metadata: {
             sql: queryResult.sql,
             rowCount: queryResult.data?.length
