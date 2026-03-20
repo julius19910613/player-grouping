@@ -210,10 +210,20 @@ Return a JSON object with these fields:
   "filters": [
     {"column": "column_name", "operator": "eq|neq|gt|gte|lt|lte|like|ilike|in|is", "value": "value"}
   ],
+  "or": {
+    "conditions": [
+      {"column": "column_name", "operator": "eq|neq|gt|gte|lt|lte|like|ilike|in|is", "value": "value"}
+    ]
+  },
   "order": {"column": "column_name", "ascending": true/false},
   "limit": number (max 100),
   "joins": [{"table": "related_table", "select": "columns from joined table"}]
 }
+
+**CRITICAL FOR OR QUERIES:**
+- "or" is a SEPARATE field from "filters", NOT inside filters array
+- "or" has a "conditions" array with individual filter objects
+- NEVER put {"column": "or", "operator": "or", ...} in filters
 
 **CRITICAL RULES:**
 1. **NEVER use table aliases like "matches_1", "matches_2", "table_alias.column"** - This will cause "column does not exist" errors
@@ -227,13 +237,19 @@ Return a JSON object with these fields:
 ✅ Join matches: { "select": "*, matches(date, venue)" }
 ✅ Multiple joins: { "select": "*, player_skills(*), matches(date, venue)" }
 ✅ Order by joined column: { "order": "player_skills.overall" } (use dot notation)
-✅ OR query: { "or": [{"column": "name", "operator": "eq", "value": "张三"}, {"column": "name", "operator": "eq", "value": "李四"}] }
+✅ OR query: { "or": {"conditions": [{"column": "name", "operator": "eq", "value": "张三"}, {"column": "name", "operator": "eq", "value": "李四"}]} }
+✅ Compare players: { "or": {"conditions": [{"column": "name", "operator": "ilike", "value": "%骚当%"}, {"column": "name", "operator": "ilike", "value": "%黑老王%"}]} }
 
 **WRONG EXAMPLES (will cause errors):**
 ❌ "select": "*, matches_1.date" - NO table aliases!
 ❌ "select": "matches.date, players.name" - NO dot notation for joins!
 ❌ "filters": [{"column": "matches_1.date", ...}] - NO aliases in filters!
 ❌ OR with wrong syntax: "or": "is.(name.ilike.张%,name.ilike.李%)" - INVALID PostgREST syntax!
+
+**Important for Chinese player names:**
+- Always use "ilike" operator with % wildcards for name matching (never "eq")
+- For comparing multiple players, use OR conditions with ilike
+- Example for "骚当和黑老王": OR conditions with "name.ilike.%骚当%" and "name.ilike.%黑老王%"
 
 Position values are: PG (控卫), SG (得分后卫), SF (小前锋), PF (大前锋), C (中锋)
 
@@ -414,7 +430,8 @@ Return ONLY valid JSON, no explanations.
           return valueStr;
         }
       );
-      desc += ` OR (${orDescs.join(' OR ')})`;
+      const prefix = query.filters && query.filters.length > 0 ? ' OR ' : ' WHERE ';
+      desc += `${prefix}(${orDescs.join(' OR ')})`;
     }
 
     if (query.order) {

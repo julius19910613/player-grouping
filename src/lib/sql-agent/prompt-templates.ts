@@ -124,6 +124,35 @@ JSON 格式:
 }
 \`\`\`
 
+### 模式 3.5: 比较多个球员
+**适用场景**: 比较两个或多个球员的数据
+
+\`\`\`typescript
+问题示例:
+- "骚当和黑老王比怎么样"
+- "张三和李四谁更强"
+- "比较王五、赵六的投篮能力"
+
+生成规则:
+1. 使用 OR 条件查询多个球员
+2. 必须使用 ilike + % 通配符（中文球员名可能包含特殊字符）
+3. JOIN player_skills 获取技能数据
+4. 限制合理数量（如10）
+
+JSON 格式:
+{
+  "table": "player_skills",
+  "select": "*, players(name, position)",
+  "or": {
+    "conditions": [
+      {"column": "players.name", "operator": "ilike", "value": "%骚当%"},
+      {"column": "players.name", "operator": "ilike", "value": "%黑老王%"}
+    ]
+  },
+  "limit": 10
+}
+\`\`\`
+
 ### 模式 4: 位置查询
 **适用场景**: 查询特定位置的球员
 
@@ -290,6 +319,21 @@ JSON 格式:
         {"column": "name", "operator": "ilike", "value": "%伟%"}
       ],
       "limit": 20
+    }
+  },
+  {
+    "question": "骚当和黑老王比怎么样",
+    "explanation": "比较两个球员，使用OR条件和模糊匹配",
+    "query": {
+      "table": "player_skills",
+      "select": "*, players(name, position)",
+      "or": {
+        "conditions": [
+          {"column": "players.name", "operator": "ilike", "value": "%骚当%"},
+          {"column": "players.name", "operator": "ilike", "value": "%黑老王%"}
+        ]
+      },
+      "limit": 10
     }
   }
 ]

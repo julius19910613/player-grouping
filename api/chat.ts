@@ -144,11 +144,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               break;
 
             case 'done':
-              // Send final summary
+              // Send final metadata only (text already sent via explanation events)
               sendEvent(res, {
                 success: true,
                 type: 'complete',
-                text: fullExplanation,
                 metadata: {
                   sql: lastSql,
                   rowCount: lastRowCount
