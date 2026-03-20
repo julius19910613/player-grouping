@@ -327,14 +327,14 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-background pt-12">
+      <div className="min-h-screen bg-[#f5f6f7] pt-14">
         <ShellBar 
           onOpenImportPlayers={handleOpenImportPlayers}
           onOpenImportGames={handleOpenImportGames}
           onOpenExport={handleExportData}
         />
         
-        <main className="w-full max-w-[95%] mx-auto px-2 py-4">
+        <main className="w-full max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8">
           {/* 加载状态 */}
           {loading && (
             <Card className="mb-6">
@@ -591,7 +591,7 @@ function App() {
                           {teams.map((team) => (
                             <Card 
                               key={team.id}
-                              className="bg-gradient-to-br from-primary to-accent text-white shadow-lg"
+                              className="bg-[#0040b0] text-white shadow-[0_2px_4px_rgba(34,53,72,0.08)]"
                             >
                               <CardContent className="p-4">
                                 <div className="flex justify-between items-center mb-4 pb-2 border-b border-white/30">

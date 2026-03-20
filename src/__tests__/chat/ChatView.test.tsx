@@ -29,7 +29,7 @@ describe('ChatView', () => {
       render(<ChatView />);
       
       expect(screen.getByText('💬 智能助手')).toBeInTheDocument();
-      expect(screen.getByText('欢迎使用智能助手')).toBeInTheDocument();
+      expect(screen.getByText(/你好！我是篮球球员分组助手/)).toBeInTheDocument();
     });
 
     it('应该渲染输入框和发送按钮', () => {

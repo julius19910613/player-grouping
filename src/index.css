@@ -1,38 +1,41 @@
 @import "tailwindcss";
 
-/* SAP Fiori Theme - CSS Variables */
+/* SAP Digital Design System - sap.com style */
 @theme {
-  /* SAP Fiori Colors */
-  --color-primary: #0A6ED1;
-  --color-primary-foreground: #FFFFFF;
-  --color-secondary: #F5F5F5;
-  --color-secondary-foreground: #32363A;
-  --color-background: #FAFAFA;
-  --color-foreground: #32363A;
-  --color-card: #FFFFFF;
-  --color-card-foreground: #32363A;
-  --color-popover: #FFFFFF;
-  --color-popover-foreground: #32363A;
-  --color-muted: #F5F5F5;
-  --color-muted-foreground: #6A6D70;
-  --color-accent: #00B7F0;
-  --color-accent-foreground: #FFFFFF;
-  --color-destructive: #BB0000;
-  --color-destructive-foreground: #FFFFFF;
-  --color-border: #E5E5E5;
-  --color-input: #E5E5E5;
-  --color-ring: #0A6ED1;
-  --radius: 0.5rem;
-  
-  /* SAP Fiori Status Colors */
-  --color-success: #4DB14B;
-  --color-warning: #E76500;
-  --color-error: #BB0000;
-  
-  /* SAP Fiori Shadows */
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.08);
-  --shadow-2: 0 2px 4px rgba(0, 0, 0, 0.1);
-  --shadow-3: 0 4px 8px rgba(0, 0, 0, 0.12);
+  /* SAP Brand Colors - Primary Blue palette */
+  --color-primary: #0070f2;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #f5f6f7;
+  --color-secondary-foreground: #223548;
+  --color-background: #ffffff;
+  --color-foreground: #223548;
+  --color-card: #ffffff;
+  --color-card-foreground: #223548;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #223548;
+  --color-muted: #eaecee;
+  --color-muted-foreground: #5b738b;
+  --color-accent: #d1efff;
+  --color-accent-foreground: #002a86;
+  --color-destructive: #ee3939;
+  --color-destructive-foreground: #ffffff;
+  --color-border: #d5dadd;
+  --color-input: #d5dadd;
+  --color-ring: #0070f2;
+  --radius: 0.25rem;
+
+  /* SAP Status Colors */
+  --color-success: #36a41d;
+  --color-warning: #e76500;
+  --color-error: #ee3939;
+
+  /* SAP Typography */
+  --font-sans: "72", "72full", Arial, Helvetica, "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+
+  /* SAP Shadows - subtle */
+  --shadow-1: 0 1px 2px rgba(34, 53, 72, 0.06);
+  --shadow-2: 0 2px 4px rgba(34, 53, 72, 0.08);
+  --shadow-3: 0 4px 12px rgba(34, 53, 72, 0.1);
 }
 
 /* Base styles */
@@ -43,26 +46,28 @@
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
-  font-family: "72", "72full", Arial, Helvetica, sans-serif;
+  font-family: "72", "72full", Arial, Helvetica, "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* SAP Fiori Utilities */
+/* SAP Design Utilities */
 .sap-background {
-  background-color: #FAFAFA;
+  background-color: #f5f6f7;
 }
 
 .sap-shadow-1 {
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px rgba(34, 53, 72, 0.06);
 }
 
 .sap-shadow-2 {
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(34, 53, 72, 0.08);
 }
 
 .sap-shadow-3 {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 12px rgba(34, 53, 72, 0.1);
 }
 
 /* Range input styling */

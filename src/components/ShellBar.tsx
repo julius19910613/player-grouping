@@ -32,27 +32,27 @@ export function ShellBar({
 
   return (
     <header 
-      className="bg-primary shadow-md fixed top-0 w-full z-50"
+      className="fixed top-0 w-full z-50 bg-[#002a86] text-white shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
       data-testid="shell-bar"
     >
-      {/* Desktop Header */}
-      <div className="h-12 flex items-center px-4">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">🏀</span>
-          <h1 className="text-white font-semibold text-lg hidden sm:block">篮球球员分组系统</h1>
+      {/* Desktop Header - SAP.com style */}
+      <div className="h-14 flex items-center px-6 md:px-8">
+        <div className="flex items-center gap-4">
+          <span className="text-xl font-medium tracking-tight">🏀</span>
+          <h1 className="text-white font-medium text-base md:text-lg hidden sm:block tracking-tight">篮球球员分组系统</h1>
         </div>
         
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex ml-6 gap-1">
+        {/* Desktop Navigation - SAP style nav */}
+        <nav className="hidden md:flex ml-8 gap-0.5">
           {navItems.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                `px-4 py-2 rounded text-[15px] font-medium transition-colors ${
                   isActive
-                    ? 'bg-white/20 text-white'
-                    : 'text-white/80 hover:bg-white/10 hover:text-white'
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/90 hover:bg-white/10 hover:text-white'
                 }`
               }
             >
@@ -74,9 +74,9 @@ export function ShellBar({
         <div className="hidden md:flex ml-auto items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="text-white hover:bg-primary/80"
+          <Button 
+            variant="ghost" 
+            className="text-white hover:bg-white/10"
                 data-testid="data-management-menu"
               >
                 <Database className="w-4 h-4 mr-2" />
@@ -112,7 +112,7 @@ export function ShellBar({
           <Button 
             variant="ghost" 
             size="sm"
-            className="text-white hover:bg-primary/80"
+            className="text-white hover:bg-white/10"
             data-testid="help-button"
           >
             帮助
@@ -125,7 +125,7 @@ export function ShellBar({
 
       {/* Mobile Navigation */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-primary/95 border-t border-white/10">
+        <div className="md:hidden bg-[#002a86] border-t border-white/10">
           <nav className="px-4 py-2 space-y-1">
             {navItems.map(item => (
               <NavLink
@@ -133,10 +133,10 @@ export function ShellBar({
                 to={item.to}
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={({ isActive }) =>
-                  `block px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  `block px-4 py-2 rounded text-[15px] font-medium transition-colors ${
                     isActive
-                      ? 'bg-white/20 text-white'
-                      : 'text-white/80 hover:bg-white/10 hover:text-white'
+                      ? 'bg-white/15 text-white'
+                      : 'text-white/90 hover:bg-white/10 hover:text-white'
                   }`
                 }
               >
@@ -151,7 +151,7 @@ export function ShellBar({
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="ghost" 
-                  className="w-full text-white hover:bg-primary/80 justify-start"
+                  className="w-full text-white hover:bg-white/10 justify-start"
                 >
                   <Database className="w-4 h-4 mr-2" />
                   数据管理

@@ -93,11 +93,8 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({ skills, positi
   };
 
   return (
-    <div className="skill-radar-chart" style={{
-      padding: '16px',
-      backgroundColor: 'var(--color-background-secondary)',
-      borderRadius: 'var(--radius-lg)',
-      border: `2px solid ${positionDetails.color}`
+    <div className="skill-radar-chart bg-[#f5f6f7] rounded border-2 p-4" style={{
+      borderColor: positionDetails.color
     }}>
       <h4 style={{ margin: '0 0 12px 0', color: positionDetails.color, textAlign: 'center' }}>
         {positionDetails.icon} {positionDetails.name} 能力分析
@@ -111,7 +108,7 @@ export const SkillRadarChart: React.FC<SkillRadarChartProps> = ({ skills, positi
         <span style={{ fontSize: '28px', fontWeight: 'bold', color: positionDetails.color }}>
           {skills.overall}
         </span>
-        <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}> 总评</span>
+        <span className="text-xs text-[#5b738b]"> 总评</span>
       </div>
     </div>
   );

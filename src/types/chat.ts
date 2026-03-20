@@ -16,6 +16,7 @@ export interface ChatMessage {
     source?: string;
     sql?: string;
     rowCount?: number;
+    data?: unknown[];
   };
 }
 

@@ -187,18 +187,23 @@ You are a database query expert. Convert the following question into a structure
    - IN operator: "name.in.(张三,李四)" (comma separated values)
    - Complex OR: "and(name.eq.张三,position.eq.PG),name.eq.李四" (nested AND/OR)
 
-2. **Order by Joined Tables**: Use dot notation for foreign table columns
-   - Correct: "player_skills.overall" (order by joined table column)
-   - Wrong: "matches_1.date" (NEVER use auto-generated aliases)
+2. **Order by SKILL columns (CRITICAL)**: When ordering by three_point_shot, two_point_shot, overall, or any player_skills column:
+   - MUST use "player_skills" as main table, "players" as join
+   - Example: {"table": "player_skills", "select": "*, players(name, position)", "order": {"column": "three_point_shot", "ascending": false}, "limit": 1}
+   - NEVER use players as main table with order "player_skills.three_point_shot" - this causes parse errors!
 
-3. **Filter by Joined Tables**: Use dot notation for foreign table columns
+3. **Order by other joined tables**: Use foreignTable format only when necessary (e.g. matches.match_date from player_match_stats)
+
+4. **Filter by Joined Tables**: Use dot notation for foreign table columns
    - Correct: "player_skills.overall,eq.90" (filter by joined table column)
    - Wrong: "matches_1.date,eq.2024" (NEVER use aliases in filters)
+
+**Skill ranking questions** (谁三分最准, 投篮最好, 综合最高): Use table "player_skills", select "*, players(name, position)", order by skill column directly (e.g. three_point_shot).
 
 Available tables and their columns:
 - players: id (uuid), name (text), position (text, one of: PG, SG, SF, PF, C), created_at (timestamp), updated_at (timestamp)
 - player_skills: player_id (uuid, FK→players.id), two_point_shot (int), three_point_shot (int), free_throw (int), passing (int), ball_control (int), court_vision (int), perimeter_defense (int), interior_defense (int), steals (int), blocks (int), offensive_rebound (int), defensive_rebound (int), speed (int), strength (int), stamina (int), vertical (int), basketball_iq (int), teamwork (int), clutch (int), overall (int), updated_at (timestamp)
-- matches: id (uuid), date (date), venue (text), mode (text), teams (jsonb), result (jsonb), notes (text), created_at (timestamp), updated_at (timestamp)
+- matches: id (uuid), match_date (timestamptz), venue (text), mode (text), teams (jsonb), result (jsonb), notes (text), created_at (timestamp), updated_at (timestamp). USE match_date NOT date!
 - player_match_stats: id (uuid), match_id (uuid, FK→matches.id), player_id (uuid, FK→players.id), points (int), rebounds (int), assists (int), steals (int), blocks (int), turnovers (int), fouls (int), minutes_played (int), field_goals_made (int), field_goals_attempted (int), three_pointers_made (int), three_pointers_attempted (int), free_throws_made (int), free_throws_attempted (int), plus_minus (int), efficiency_rating (float), created_at (timestamp), updated_at (timestamp)
 
 Question: ${question}
@@ -233,18 +238,22 @@ Return a JSON object with these fields:
 5. **OR queries**: Use PostgREST format with .or() for complex conditions
 
 **CORRECT EXAMPLES:**
+✅ Skill ranking (谁三分最准): { "table": "player_skills", "select": "*, players(name, position)", "order": {"column": "three_point_shot", "ascending": false}, "limit": 1 }
 ✅ Join player_skills: { "select": "*, player_skills(overall, defense, speed)" }
-✅ Join matches: { "select": "*, matches(date, venue)" }
-✅ Multiple joins: { "select": "*, player_skills(*), matches(date, venue)" }
-✅ Order by joined column: { "order": "player_skills.overall" } (use dot notation)
+✅ Join matches: { "select": "*, matches(match_date, venue)" } - USE match_date NOT date!
+✅ Multiple joins: { "select": "*, player_skills(*)" } - avoid players+player_skills+player_match_stats+matches in one query
+✅ Order by joined column (non-skill): { "order": {"column": "matches(match_date)", "ascending": false} } (only when main table is player_match_stats)
 ✅ OR query: { "or": {"conditions": [{"column": "name", "operator": "eq", "value": "张三"}, {"column": "name", "operator": "eq", "value": "李四"}]} }
 ✅ Compare players: { "or": {"conditions": [{"column": "name", "operator": "ilike", "value": "%骚当%"}, {"column": "name", "operator": "ilike", "value": "%黑老王%"}]} }
+✅ Player data (大哥的数据): { "table": "players", "select": "*, player_skills(*)", "filters": [{"column": "name", "operator": "ilike", "value": "%大哥%"}] }
 
 **WRONG EXAMPLES (will cause errors):**
 ❌ "select": "*, matches_1.date" - NO table aliases!
 ❌ "select": "matches.date, players.name" - NO dot notation for joins!
 ❌ "filters": [{"column": "matches_1.date", ...}] - NO aliases in filters!
 ❌ OR with wrong syntax: "or": "is.(name.ilike.张%,name.ilike.李%)" - INVALID PostgREST syntax!
+
+**Player data queries (X的数据, 大哥的数据)**: Use simple "*, player_skills(*)" from players. NEVER use player_match_stats(*, matches(...)) with players - causes "matches_2" errors. For match stats, query from player_match_stats as main table.
 
 **Important for Chinese player names:**
 - Always use "ilike" operator with % wildcards for name matching (never "eq")
@@ -370,21 +379,19 @@ Return ONLY valid JSON, no explanations.
       }
 
       // Apply ordering - Fix for foreign table columns
+      // Supabase PostgREST requires table(column) format for foreign table ordering, NOT table.column
+      // See: lib/db-queries.ts .order('matches(date)', { ascending: false })
       if (query.order) {
-        // Check if ordering by a joined table column (contains dot)
         const isJoinedColumn = query.order.column.includes('.');
-
-        // For joined tables, use dot notation directly
+        let orderColumn = query.order.column;
         if (isJoinedColumn) {
-          supabaseQuery = supabaseQuery.order(query.order.column, {
-            ascending: query.order.ascending,
-          });
-        } else {
-          // For main table columns, use standard ordering
-          supabaseQuery = supabaseQuery.order(query.order.column, {
-            ascending: query.order.ascending,
-          });
+          const [foreignTable, column] = query.order.column.split('.');
+          orderColumn = `${foreignTable}(${column})`;
         }
+
+        supabaseQuery = supabaseQuery.order(orderColumn, {
+          ascending: query.order.ascending,
+        });
       }
 
       // Apply limit

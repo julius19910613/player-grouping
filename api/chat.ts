@@ -23,8 +23,8 @@ let streamingAgent: StreamingSQLAgent | null = null;
 function detectDBIntent(message: string): boolean {
   const keywords = [
     '球员', '水平', '能力', '位置', '技能',
-    '最厉害', '最强', '排名', '比较', '统计',
-    '得分', '防守', '传球', '投篮', '篮板',
+    '最厉害', '最强', '最准', '排名', '比较', '统计',
+    '得分', '防守', '传球', '投篮', '篮板', '三分', '两分',
     '骚当', '谁', '多少', '几个', '数据'
   ];
   return keywords.some(kw => message.includes(kw));

@@ -1,15 +1,17 @@
 /**
  * 增强版聊天消息组件
- * 支持复制、重新生成、Markdown 渲染
+ * 支持复制、重新生成、Markdown 渲染、球员数据雷达图
  */
 
 import { memo, useState, useCallback } from 'react';
 import { Button } from './ui/button';
 import { MarkdownRenderer } from './MarkdownRenderer';
+import { SkillRadarChart } from './SkillRadarChart';
 import { Copy, RotateCcw, Check, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import { FeedbackButtons } from './FeedbackButtons';
 import { cn } from '@/lib/utils';
+import { normalizePlayerForChart, hasPlayerSkillData } from '@/lib/player-data-utils';
 import type { ChatMessage as ChatMessageType } from '../types/chat';
 
 interface ChatMessageProps {
@@ -51,17 +53,17 @@ export const ChatMessage = memo<ChatMessageProps>(
         data-testid={`message-${message.role}`}
       >
         <div
-          className={`max-w-[70%] rounded-lg p-3 ${
+          className={`max-w-[70%] rounded p-3 ${
             isUser
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted'
+              ? 'bg-[#0070f2] text-white'
+              : 'bg-[#eaecee] text-[#223548]'
           }`}
         >
           {/* 数据库查询标记（仅 AI 消息） */}
           {!isUser && message.metadata?.source === 'sql-agent' && (
-            <div className="flex items-center gap-1.5 mb-2 px-2 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md">
-              <Database className="h-3.5 w-3.5 text-blue-500" />
-              <span className="text-xs text-blue-600 dark:text-blue-400">
+            <div className="flex items-center gap-1.5 mb-2 px-2 py-1 bg-[#d1efff] border border-[#a6e0ff] rounded">
+              <Database className="h-3.5 w-3.5 text-[#0070f2]" />
+              <span className="text-xs text-[#002a86]">
                 已查询数据库
               </span>
               {message.metadata.rowCount !== undefined && (
@@ -71,6 +73,24 @@ export const ChatMessage = memo<ChatMessageProps>(
               )}
             </div>
           )}
+
+          {/* 球员数据雷达图 */}
+          {!isUser && message.metadata?.data && Array.isArray(message.metadata.data) && hasPlayerSkillData(message.metadata.data) && (() => {
+            const players = message.metadata.data
+              .map((row: unknown) => normalizePlayerForChart(row))
+              .filter((p): p is NonNullable<typeof p> => p !== null);
+            if (players.length === 0) return null;
+            return (
+              <div className="mt-2 mb-3 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-[420px]">
+                {players.slice(0, 4).map((p, i) => (
+                  <div key={i} className="min-w-0">
+                    <SkillRadarChart skills={p.skills} position={p.position} />
+                    <p className="text-center text-sm font-medium mt-1 text-[#223548]">{p.name}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* 消息内容 */}
           {isUser ? (
@@ -142,6 +162,7 @@ export const ChatMessage = memo<ChatMessageProps>(
     return (
       prevProps.message.id === nextProps.message.id &&
       prevProps.message.content === nextProps.message.content &&
+      prevProps.message.metadata?.data === nextProps.message.metadata?.data &&
       prevProps.isLast === nextProps.isLast
     );
   }

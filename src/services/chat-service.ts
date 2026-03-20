@@ -84,14 +84,16 @@ export class ChatService {
   /**
    * 发送消息（流式）
    * @param message 用户消息
-   * @param onChunk 每次收到数据块的回调
+   * @param onChunk 每次收到文本块的回调
    * @param history 可选的消息历史（如果提供，则使用此历史而非内部历史）
+   * @param options 可选配置，如 onData 接收查询结果数据
    * @returns 完整的 AI 响应
    */
   async sendMessageStream(
     message: string,
     onChunk: (text: string) => void,
-    history?: Array<{ role: 'user' | 'assistant'; content: string }>
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>,
+    options?: { onData?: (data: unknown[], metadata?: { sql?: string; rowCount?: number }) => void }
   ): Promise<string> {
     // 如果提供了外部历史，使用外部历史；否则使用内部历史管理
     const useExternalHistory = history !== undefined;
@@ -110,7 +112,7 @@ export class ChatService {
 
       // 优先尝试后端 API route
       try {
-        response = await this.sendToBackendStream(messagesToSend!, onChunk);
+        response = await this.sendToBackendStream(messagesToSend!, onChunk, options);
       } catch (backendError) {
         console.warn('Backend API stream failed, trying direct Gemini call:', backendError);
 
@@ -140,7 +142,11 @@ export class ChatService {
   /**
    * 发送到后端 API route（流式）
    */
-  private async sendToBackendStream(messages: Array<{ role: 'user' | 'assistant'; content: string }>, onChunk: (text: string) => void): Promise<string> {
+  private async sendToBackendStream(
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+    onChunk: (text: string) => void,
+    options?: { onData?: (data: unknown[], metadata?: { sql?: string; rowCount?: number }) => void }
+  ): Promise<string> {
     const apiUrl = import.meta.env.PROD
       ? 'https://player-grouping.vercel.app/api/chat'
       : 'http://localhost:3000/api/chat';
@@ -200,7 +206,12 @@ export class ChatService {
               if (dataStr.trim() === '') continue;
               try {
                 const data = JSON.parse(dataStr);
-                if (data.text) {
+                if (data.type === 'data' && data.data != null && options?.onData) {
+                  options.onData(
+                    Array.isArray(data.data) ? data.data : [data.data],
+                    { sql: data.sql, rowCount: data.rowCount }
+                  );
+                } else if (data.text) {
                   onChunk(data.text);
                   fullText += data.text;
                 } else if (data.error) {

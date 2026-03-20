@@ -14,8 +14,15 @@ import { screenReader } from '../lib/accessibility';
 import { toast } from 'sonner';
 import type { ChatMessage as ChatMessageType } from '../types/chat';
 
+const WELCOME_MESSAGE: ChatMessageType = {
+  id: 'welcome',
+  role: 'assistant',
+  content: '你好！我是篮球球员分组助手，可以帮你查询球员数据、分组、分析等。有什么想问的吗？',
+  timestamp: new Date(),
+};
+
 export function ChatView() {
-  const [messages, setMessages] = useState<ChatMessageType[]>([]);
+  const [messages, setMessages] = useState<ChatMessageType[]>(() => [WELCOME_MESSAGE]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,17 +83,23 @@ export function ChatView() {
       timestamp: new Date(),
     };
 
-    // 构建要发送的消息历史（包括新用户消息）
+    // 构建要发送的消息历史（包括新用户消息，排除欢迎消息）
     const updatedMessages = [...messages, userMessage];
-    const messagesToSend = updatedMessages.map(msg => ({
-      role: msg.role as 'user' | 'assistant',
-      content: msg.content,
-    }));
+    const messagesToSend = updatedMessages
+      .filter(msg => msg.id !== 'welcome')
+      .map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+      }));
 
     setMessages(prev => [...prev, userMessage, assistantMessage]);
     setIsLoading(true);
     setIsStreaming(false);
     setError(null);
+
+    // 存储查询结果数据（用于雷达图等展示）
+    let queryData: unknown[] | undefined;
+    let queryMetadata: { sql?: string; rowCount?: number } | undefined;
 
     // 屏幕阅读器公告
     screenReader.announce('正在处理您的消息...', 'polite');
@@ -100,8 +113,31 @@ export function ChatView() {
             ? { ...msg, content: msg.content + chunkText }
             : msg
         ));
-      }, messagesToSend); // 传递消息历史
+      }, messagesToSend, {
+        onData: (data, metadata) => {
+          queryData = data;
+          queryMetadata = metadata;
+        },
+      });
       setIsStreaming(false);
+
+      // 将查询数据附加到助手消息（含空结果时也标记为 sql-agent 以显示数据库徽章）
+      if (queryMetadata !== undefined) {
+        setMessages(prev => prev.map(msg =>
+          msg.id === assistantMessageId
+            ? {
+                ...msg,
+                metadata: {
+                  ...msg.metadata,
+                  source: 'sql-agent',
+                  data: queryData,
+                  sql: queryMetadata?.sql,
+                  rowCount: queryMetadata?.rowCount,
+                },
+              }
+            : msg
+        ));
+      }
 
       // 屏幕阅读器公告
       screenReader.announce('收到回复', 'polite');
@@ -156,10 +192,10 @@ export function ChatView() {
 
   // 清空对话
   const handleClearChat = useCallback(() => {
-    if (messages.length === 0) return;
+    if (messages.length <= 1) return;
 
     if (window.confirm('确定要清空所有对话吗？')) {
-      setMessages([]);
+      setMessages([WELCOME_MESSAGE]);
       setError(null);
       chatService.clearHistory();
       toast.success('对话已清空');
@@ -176,25 +212,25 @@ export function ChatView() {
 
   return (
     <div
-      className="flex flex-col h-[calc(100vh-100px)] w-full"
+      className="flex flex-col h-[calc(100vh-7rem)] w-full"
       role="main"
       aria-label="聊天助手"
     >
-      {/* 顶部工具栏 */}
-      <div className="flex items-center justify-between mb-4 px-2">
-        <div className="flex items-center gap-2">
-          <h2 className="text-lg font-semibold" id="chat-title">
-            💬 智能助手
+      {/* 顶部工具栏 - SAP style */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-medium text-[#223548] leading-[1.1]" id="chat-title">
+            智能助手
           </h2>
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-[#5b738b]">
             {messages.length > 0 && `${messages.length} 条消息`}
           </span>
         </div>
 
-        {messages.length > 0 && (
+        {messages.length > 1 && (
           <button
             onClick={handleClearChat}
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-sm text-[#5b738b] hover:text-[#223548] transition-colors"
             aria-label="清空对话"
           >
             清空对话
@@ -235,7 +271,7 @@ export function ChatView() {
               <ChatMessage
                 key={msg.id}
                 message={msg}
-                onRegenerate={index === messages.length - 1 && msg.role === 'assistant' ? handleRegenerate : undefined}
+                onRegenerate={index === messages.length - 1 && msg.role === 'assistant' && msg.id !== 'welcome' ? handleRegenerate : undefined}
                 isLast={index === messages.length - 1}
               />
             ))}
@@ -263,7 +299,7 @@ export function ChatView() {
       </Card>
 
       {/* 键盘快捷键提示 */}
-      <div className="text-xs text-muted-foreground text-center mt-2" aria-hidden="true">
+      <div className="text-xs text-[#5b738b] text-center mt-2" aria-hidden="true">
         <kbd className="px-1.5 py-0.5 bg-muted rounded">Enter</kbd> 发送 ·
         <kbd className="px-1.5 py-0.5 bg-muted rounded">Shift + Enter</kbd> 换行 ·
         <kbd className="px-1.5 py-0.5 bg-muted rounded">/</kbd> 快捷命令
