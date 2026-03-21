@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { DragDropGrouping } from '../../src/components/DragDropGrouping';
-import type { Team, Player } from '../../src/types';
-import { BasketballPosition } from '../../src/types';
+import { DragDropGrouping } from '@/components/DragDropGrouping';
+import type { Team, Player } from '@/types';
+import { BasketballPosition } from '@/types';
 
 // 创建测试用的球员数据
 function createMockPlayer(id: string, name: string, overall: number): Player {

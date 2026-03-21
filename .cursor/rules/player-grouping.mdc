@@ -1,0 +1,107 @@
+---
+description: Basketball player grouping app - architecture, patterns, and conventions
+alwaysApply: true
+---
+
+# Player Grouping Project Rules
+
+## Commands
+
+```bash
+npm run dev          # Dev server (localhost:5173)
+npm run dev:vercel   # Vercel dev with serverless
+npm run build        # Production build
+npm test             # Vitest + jsdom | npm test -- <pattern>
+npm run lint         # ESLint
+npm run deploy       # GitHub Pages
+```
+
+## Architecture
+
+React 19 + TypeScript + Vite. Repository pattern with Supabase as primary data source.
+
+**Repositories** (from `@/repositories`):
+- `playerRepository` / `createPlayerRepository()` → Supabase (forced)
+- `groupingRepository` / `createGroupingRepository()` → Supabase or SQLite fallback
+- Match, PlayerMatchStats, SkillAdjustment, PlayerVideo repos
+
+**Services** (`src/services/`): DatabaseService, AuthService, ChatService, AiService, MonitoringService, FeedbackService, RatingHistoryService, MatchAnalysisService, MatchImportService
+
+**Path alias**: `@/` → `src/` (tsconfig + vitest)
+
+## Routes & Components
+
+| Route | View |
+|-------|------|
+| `/` | Chat (AI assistant) |
+| `/players` | Player management |
+| `/grouping` | Drag-and-drop grouping |
+
+**Key**: ShellBar nav, shadcn/ui, controlled forms, Dialog workflows, `cn()` from `@/lib/utils` for class merging.
+
+## Database Schema
+
+Tables: `players`, `player_skills`, `grouping_history`, `matches`, `player_match_stats`, `skill_adjustments`, `player_videos`. 19 skills in player_skills + position-weighted overall.
+
+## Grouping Algorithm
+
+`src/utils/groupingAlgorithm.ts`: `groupPlayers()`, `calculateBalance()`, `balanceTeams()`. Strategies: `balanced`, `position-balanced`, `random`. Legacy: `src/utils/basketballGroupingAlgorithm.ts`.
+
+## Chat & AI
+
+- **ChatService** (`src/services/chat-service.ts`): streaming, function calling
+- **SQL Agent** (`src/lib/sql-agent/sql-query-agent.ts`): natural language → Supabase queries. Whitelist tables, SELECT only, max 100 rows.
+- **API** (`/api/chat.ts`): SSE, SQL Agent, CORS, intent detection
+
+Env: `VITE_ARK_API_KEY`, `VITE_BRAVE_SEARCH_API_KEY`, `GEMINI_API_KEY` (backend).
+
+## shadcn/ui
+
+Components in `src/components/ui/`. Copy-paste model. Prefer wrapper components over modifying ui/*. Use `buttonVariants` / `VariantProps` for variants.
+
+## Tailwind v4
+
+CSS-first, `@theme` in CSS. Semantic tokens: `bg-background`, `text-foreground`, `bg-muted`, `border-border`, `bg-primary`, `bg-destructive`.
+
+## TypeScript
+
+- Strict mode, no `any`; use `unknown` + type guards
+- Interfaces for objects, types for unions
+- `readonly` for immutables
+- Discriminated unions for results
+- `import type` when only types needed
+
+## Environment
+
+Required: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. Optional: `VITE_ARK_API_KEY`, `VITE_BRAVE_SEARCH_API_KEY`, `GEMINI_API_KEY`.
+
+## Deployment
+
+| Platform | Base | Note |
+|----------|------|------|
+| GitHub Pages | `/player-grouping/` | No serverless |
+| Vercel | `/` | SQL Agent supported |
+| Cloudflare Pages | `/` | env in dashboard |
+
+## TypeScript Patterns
+
+```typescript
+// Type guards
+function isPlayer(v: unknown): v is Player {
+  return typeof v === 'object' && v !== null && 'id' in v && typeof (v as { id: unknown }).id === 'string';
+}
+
+// Discriminated union
+type Result<T, E> = { success: true; data: T } | { success: false; error: E };
+
+// forwardRef
+const Input = React.forwardRef<HTMLInputElement, React.ComponentPropsWithoutRef<'input'>>(...)
+```
+
+## Important
+
+- Supabase required for player data
+- `VITE_BASE_URL=/player-grouping/` for GitHub Pages
+- SQL Agent works on Vercel (serverless); not on GitHub Pages
+- Setup: `src/test/setup.ts` for Vitest
+- Use `cn()` from `@/lib/utils` for className merging

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { QueryBuilder, DATABASE_SCHEMA, type QueryParams } from '../src/lib/query-builder';
+import { QueryBuilder, DATABASE_SCHEMA, type QueryParams } from '@/lib/query-builder';
 
 // Mock Supabase client
 const mockSupabase = {

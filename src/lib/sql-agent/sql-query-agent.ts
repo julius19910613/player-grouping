@@ -38,6 +38,63 @@ export const ALLOWED_TABLES = [
 ] as const;
 
 /**
+ * Dangerous SQL keywords (case-insensitive)
+ */
+const DANGEROUS_KEYWORDS = [
+  'DROP', 'DELETE', 'UPDATE', 'INSERT', 'ALTER', 'CREATE', 'TRUNCATE',
+] as const;
+
+/**
+ * Validate raw SQL string (for backward compatibility and defense in depth).
+ * Rejects dangerous operations and non-whitelisted tables.
+ */
+export function validateSQL(sql: unknown): boolean {
+  if (sql == null || typeof sql !== 'string') {
+    return false;
+  }
+  const s = sql.trim();
+  if (s === '') return false;
+
+  const upper = s.toUpperCase();
+
+  // Reject dangerous keywords
+  for (const kw of DANGEROUS_KEYWORDS) {
+    if (upper.includes(kw)) return false;
+  }
+
+  // Must start with SELECT
+  if (!upper.replace(/\s+/g, ' ').startsWith('SELECT')) return false;
+
+  // Extract table names from FROM and JOIN (simplified)
+  const tablePattern = /\b(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = tablePattern.exec(upper)) !== null) {
+    const table = match[1].toLowerCase();
+    if (!(ALLOWED_TABLES as readonly string[]).includes(table)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Extract SQL string from a result-like object.
+ */
+export function extractSQL(result: { sql?: string; query?: string } | null | undefined): string {
+  if (!result) return '';
+  return (result.sql ?? result.query ?? '') as string;
+}
+
+/**
+ * Extract data array from a result-like object.
+ */
+export function extractData(result: { data?: unknown[]; rows?: unknown[] } | null | undefined): unknown[] {
+  if (!result) return [];
+  const arr = result.data ?? result.rows;
+  return Array.isArray(arr) ? arr : [];
+}
+
+/**
  * Maximum number of rows to return
  */
 const MAX_ROWS = 100;

@@ -5,9 +5,9 @@ import {
   undoLastMove,
   validateMove,
   getBalanceAfterMove
-} from '../../src/utils/dragDropState';
-import type { Player } from '../../src/types';
-import { BasketballPosition } from '../../src/types';
+} from '@/utils/dragDropState';
+import type { Player } from '@/types';
+import { BasketballPosition } from '@/types';
 
 // 创建测试用的球员数据
 function createMockPlayer(id: string, overall: number, position: BasketballPosition = BasketballPosition.PG): Player {

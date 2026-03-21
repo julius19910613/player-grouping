@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TabNavigation, type Tab } from '../../src/components/TabNavigation';
+import { TabNavigation, type Tab } from '@/components/TabNavigation';
 
 describe('TabNavigation', () => {
   const mockTabs: Tab[] = [

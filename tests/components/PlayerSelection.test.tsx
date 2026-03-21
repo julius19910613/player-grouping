@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { PlayerSelection } from '../../src/components/PlayerSelection';
-import type { Player } from '../../src/types';
-import { BasketballPosition } from '../../src/types';
+import { PlayerSelection } from '@/components/PlayerSelection';
+import type { Player } from '@/types';
+import { BasketballPosition } from '@/types';
 
 // 创建测试用的球员数据
 function createMockPlayer(id: string, name: string, overall: number): Player {
