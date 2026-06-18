@@ -1,0 +1,10 @@
+[package]
+name = "agu-agent"
+version = "0.1.0"
+edition = "2021"
+description = "Minimal Rust agent that calls AGU CLI and summarizes player ability from AGU outputs."
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+

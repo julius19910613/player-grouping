@@ -1,0 +1,46 @@
+{
+  "task_id": "example-task",
+  "status": "completed",
+  "progress": 100,
+  "error": null,
+  "result": {
+    "records": [
+      {
+        "player": 0,
+        "final": {
+          "action": "shoot",
+          "confidence": 0.82,
+          "needs_review": false
+        }
+      },
+      {
+        "player": 0,
+        "final": {
+          "action": "pass",
+          "confidence": 0.74,
+          "needs_review": false
+        }
+      },
+      {
+        "player": 1,
+        "final": {
+          "action": "defense",
+          "confidence": 0.69,
+          "needs_review": true
+        }
+      }
+    ],
+    "summary": {
+      "clip_count": 3,
+      "action_counts": {
+        "shoot": 1,
+        "pass": 1,
+        "defense": 1
+      },
+      "needs_review_count": 1,
+      "source_counts": {}
+    },
+    "long_video": null
+  }
+}
+
